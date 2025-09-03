@@ -47,8 +47,10 @@
   }
 
   .wow-button-primary {
-    @apply wow-button bg-wow-gold text-wow-bg-dark border-yellow-600;
-    @apply hover:bg-yellow-400 hover:border-yellow-500;
+    @apply wow-button bg-wow-gold-dark text-white border-yellow-700;
+    @apply hover:bg-wow-gold hover:border-yellow-600;
+    color: #ffffff !important; /* Force white text for maximum contrast */
+    font-weight: 600;
   }
 
   .wow-button-danger {
@@ -149,7 +151,8 @@
   }
 
   .chat-message.game {
-    @apply bg-wow-gold bg-opacity-20 text-wow-gold;
+    @apply bg-wow-gold-dark bg-opacity-30 text-wow-gold border border-wow-gold-dark;
+    color: #ffffff !important; /* Force white text for game messages */
   }
 
   .roll-history {
@@ -218,6 +221,11 @@
     animation: winnerGlow 2s infinite;
   }
 
+  .defeat-announcement {
+    @apply text-center py-8;
+    animation: defeatPulse 2s infinite;
+  }
+
   .loading-spinner {
     @apply animate-spin rounded-full h-8 w-8 border-b-2 border-wow-gold;
   }
@@ -245,5 +253,23 @@
   .slide-up-leave-to {
     transform: translateY(-50px);
     opacity: 0;
+  }
+
+  @keyframes winnerGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+    }
+  }
+
+  @keyframes defeatPulse {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(204, 41, 54, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(204, 41, 54, 0.6);
+    }
   }
 }

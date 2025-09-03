@@ -4,6 +4,7 @@ class Game {
     this.players = [...players]; // Copy array to avoid mutation
     this.currentPlayerIndex = 0;
     this.currentRange = { min: 1, max: startingRoll };
+    this.originalStartingRoll = startingRoll; // Store original starting roll
     this.rolls = []; // History of rolls
     this.status = 'active'; // 'active', 'finished'
     this.winner = null;
@@ -67,6 +68,9 @@ class Game {
         this.finishedAt = new Date();
         return roll;
       }
+      
+      // Reset range to original starting roll after elimination
+      this.currentRange = { min: 1, max: this.originalStartingRoll };
     } else {
       // Update range for next player
       this.currentRange = { min: 1, max: rollResult };
@@ -115,6 +119,7 @@ class Game {
       status: this.status,
       currentPlayer: this.getCurrentPlayer(),
       currentRange: this.currentRange,
+      originalStartingRoll: this.originalStartingRoll,
       activePlayers: this.getActivePlayers(),
       eliminatedPlayers: this.players.filter(p => p.isEliminated),
       rolls: this.rolls,

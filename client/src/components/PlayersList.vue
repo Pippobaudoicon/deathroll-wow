@@ -1,7 +1,7 @@
 <template>
   <div class="wow-card">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="wow-subheading">👥 Players ({{ gameStore.players.length }}/{{ gameStore.room?.maxPlayers || 8 }})</h3>
+      <h3 class="wow-subheading">👥 Players ({{ activePlayers.length + eliminatedPlayers.length }}/{{ gameStore.room?.maxPlayers || 8 }})</h3>
       <div class="flex items-center space-x-2 text-sm text-wow-text-muted">
         <span :class="[
           'status-indicator',
@@ -19,7 +19,7 @@
         :class="{
           'current-turn': gameStore.currentTurn?.id === player.id && gameStore.gameStatus === 'playing',
           'eliminated': player.isEliminated,
-          'host': player.isHost,
+          // 'host': player.isHost,
           'opacity-50': !player.isConnected
         }"
       >
@@ -86,7 +86,7 @@
         <!-- Turn highlight effect -->
         <div 
           v-if="gameStore.currentTurn?.id === player.id && gameStore.gameStatus === 'playing'"
-          class="absolute inset-0 bg-wow-gold bg-opacity-10 rounded animate-pulse pointer-events-none"
+          class="absolute inset-0 bg-opacity-10 rounded animate-pulse pointer-events-none"
         ></div>
       </div>
 
@@ -102,7 +102,7 @@
       <div class="grid grid-cols-2 gap-4 text-sm text-wow-text-secondary">
         <div>
           <span class="block font-semibold">Active</span>
-          <span class="text-wow-gold">{{ gameStore.activePlayers.length }}</span>
+          <span class="text-wow-gold">{{ activePlayers.length }}</span>
         </div>
         <div>
           <span class="block font-semibold">Eliminated</span>
@@ -119,7 +119,10 @@ import { useGameStore } from '@/stores/game'
 
 const gameStore = useGameStore()
 
-// Note: Using gameStore directly in template to maintain reactivity
+// Computed properties for reactive updates
+const activePlayers = computed(() => {
+  return (gameStore.players || []).filter(p => !p.isEliminated)
+})
 
 const eliminatedPlayers = computed(() => {
   return (gameStore.players || []).filter(p => p.isEliminated)

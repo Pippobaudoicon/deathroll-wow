@@ -194,7 +194,8 @@ class Room {
       createdAt: this.createdAt,
       players: this.getAllPlayers(),
       messages: this.messages.slice(-50), // Return last 50 messages
-      canStartGame: this.canStartGame()
+      canStartGame: this.canStartGame(),
+      game: this.game ? this.game.toJSON() : null // Include game state
     };
   }
 }

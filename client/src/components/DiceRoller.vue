@@ -38,7 +38,7 @@
       <div v-if="lastRoll && showLastRoll" class="space-y-2">
         <div :class="[
           'p-3 rounded-lg',
-          lastRoll.isEliminating ? 'bg-wow-red bg-opacity-20 text-wow-red' : 'bg-wow-gold bg-opacity-20 text-wow-gold'
+          lastRoll.isEliminating ? 'bg-wow-red bg-opacity-20 text-wow-red' : 'bg-opacity-20 text-wow-gold'
         ]">
           <p class="font-semibold">
             {{ lastRoll.playerName }} rolled {{ lastRoll.result }}
@@ -47,7 +47,7 @@
             ({{ lastRoll.range.min }}-{{ lastRoll.range.max }})
           </p>
           <p v-if="lastRoll.isEliminating" class="text-sm font-bold">
-            💀 ELIMINATED!
+            💀 {{ lastRoll.playerName }} is ELIMINATED! 💀
           </p>
         </div>
       </div>
@@ -58,7 +58,6 @@
           @click="handleRoll"
           :disabled="isRolling || !canRoll"
           class="wow-button-primary text-xl px-8 py-4 w-full"
-          :class="{ 'animate-pulse': !isRolling }"
         >
           <span v-if="isRolling">🎲 Rolling...</span>
           <span v-else>🎲 Roll Dice!</span>

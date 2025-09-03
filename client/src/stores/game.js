@@ -226,15 +226,35 @@ export const useGameStore = defineStore('game', () => {
     // Player joined
     socket.value.on('player-joined', (data) => {
       console.log('🎉 Player joined event handler triggered:', data)
+      console.log('📊 Game data received:', data.game)
+      
       currentPlayer.value = data.player
       room.value = data.room
       players.value = data.room.players
       messages.value = data.room.messages
+      
       if (data.game) {
+        console.log('🎮 Setting up game state from server data')
         game.value = data.game
-        gameStatus.value = data.game.status
+        gameStatus.value = data.game.status === 'active' ? 'playing' : data.game.status
         currentTurn.value = data.game.currentPlayer
         rolls.value = data.game.rolls || []
+        winner.value = data.game.winner || null
+        
+        console.log('🎯 Game state set:', {
+          status: gameStatus.value,
+          currentTurn: currentTurn.value?.name,
+          rollsCount: rolls.value.length,
+          winner: winner.value?.name
+        })
+      } else {
+        // No active game, set lobby state
+        console.log('🏠 No active game, setting lobby state')
+        gameStatus.value = 'lobby'
+        game.value = null
+        currentTurn.value = null
+        rolls.value = []
+        winner.value = null
       }
       
       // Save room state to localStorage for persistence
@@ -246,10 +266,28 @@ export const useGameStore = defineStore('game', () => {
     
     // Room updated
     socket.value.on('room-updated', (roomData) => {
+      console.log('🏠 Room updated event:', roomData)
       room.value = roomData
       players.value = roomData.players
       messages.value = roomData.messages
       gameStatus.value = roomData.status
+      
+      // Update game state if included in room data
+      if (roomData.game) {
+        console.log('🎮 Updating game state from room update')
+        game.value = roomData.game
+        gameStatus.value = roomData.game.status === 'active' ? 'playing' : roomData.game.status
+        currentTurn.value = roomData.game.currentPlayer
+        rolls.value = roomData.game.rolls || []
+        winner.value = roomData.game.winner || null
+      } else if (roomData.status === 'lobby') {
+        // Room is in lobby, clear game state
+        console.log('🏠 Room in lobby, clearing game state')
+        game.value = null
+        currentTurn.value = null
+        rolls.value = []
+        winner.value = null
+      }
     })
     
     // Player list updated
@@ -274,6 +312,7 @@ export const useGameStore = defineStore('game', () => {
       
       game.value = gameState
       room.value = roomData
+      players.value = roomData.players // Update players array with latest states
       currentTurn.value = gameState.currentPlayer
       rolls.value = gameState.rolls || []
       messages.value = roomData.messages
@@ -295,6 +334,11 @@ export const useGameStore = defineStore('game', () => {
       gameStatus.value = 'finished'
       winner.value = data.winner
       game.value = data.gameState
+      
+      // Update players if room data is included
+      if (data.room && data.room.players) {
+        players.value = data.room.players
+      }
       
       // Play win/lose sound
       if (data.winner?.id === currentPlayer.value?.id) {
