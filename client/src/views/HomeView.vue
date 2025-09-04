@@ -61,6 +61,7 @@
                 placeholder="Enter your name"
                 class="wow-input w-full"
                 maxlength="20"
+                @keyup.enter="handleJoinRoom"
               />
               <input
                 v-model="roomId"

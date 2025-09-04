@@ -141,38 +141,93 @@ export const useGameStore = defineStore('game', () => {
       
       // Create specific sounds using Tone.js
       sounds.value.clickSound = markRaw(() => {
-        sounds.value.synth.triggerAttackRelease('C4', '8n')
+        // Pleasant UI click - soft bell-like sound
+        sounds.value.synth.volume.value = -15 // Softer volume
+        sounds.value.synth.triggerAttackRelease('G5', '32n')
+        setTimeout(() => {
+          sounds.value.synth.volume.value = -10 // Reset volume
+        }, 100)
       })
       
       sounds.value.rollSound = markRaw(() => {
-        // Simulate dice roll with multiple quick notes
-        const notes = ['C4', 'D4', 'E4', 'F4', 'G4']
+        // Suspenseful dice roll - building tension with accelerating rhythm
+        sounds.value.synth.volume.value = -12
+        const notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4']
         const now = Tone.now()
+        
+        // Start slow and accelerate, then dramatic pause before final note
         notes.forEach((note, index) => {
-          sounds.value.synth.triggerAttackRelease(note, '16n', now + (index * 0.1))
+          const delay = index < 4 
+            ? index * 0.15      // Slow start
+            : 0.6 + (index - 4) * 0.08  // Faster acceleration
+          
+          sounds.value.synth.triggerAttackRelease(note, '32n', now + delay)
         })
+        
+        // Dramatic final high note after pause
+        setTimeout(() => {
+          sounds.value.synth.triggerAttackRelease('C5', '8n', Tone.now())
+        }, 1200)
+        
+        // Reset volume
+        setTimeout(() => {
+          sounds.value.synth.volume.value = -10
+        }, 1500)
       })
       
       sounds.value.winSound = markRaw(() => {
-        // Victory fanfare
-        const fanfare = ['C5', 'E5', 'G5', 'C6']
+        // Epic victory fanfare with triumph feeling
+        sounds.value.synth.volume.value = -8 // Slightly louder for celebration
+        const fanfare = [
+          { note: 'C5', time: 0 },
+          { note: 'E5', time: 0.15 },
+          { note: 'G5', time: 0.3 },
+          { note: 'C6', time: 0.5 },
+          { note: 'E6', time: 0.7 },
+          { note: 'G6', time: 0.9 }
+        ]
         const now = Tone.now()
-        fanfare.forEach((note, index) => {
-          sounds.value.synth.triggerAttackRelease(note, '4n', now + (index * 0.2))
+        
+        fanfare.forEach((item) => {
+          sounds.value.synth.triggerAttackRelease(item.note, '4n', now + item.time)
         })
+        
+        // Reset volume
+        setTimeout(() => {
+          sounds.value.synth.volume.value = -10
+        }, 1200)
       })
       
       sounds.value.loseSound = markRaw(() => {
-        // Descending loss sound
-        const loss = ['G4', 'F4', 'E4', 'D4', 'C4']
+        // Dramatic defeat sound - slow descending tragedy
+        sounds.value.synth.volume.value = -12
+        const loss = [
+          { note: 'G4', time: 0 },
+          { note: 'F4', time: 0.2 },
+          { note: 'E4', time: 0.45 },
+          { note: 'D4', time: 0.75 },
+          { note: 'C4', time: 1.1 },
+          { note: 'B3', time: 1.5 }, // Extra low note for finality
+        ]
         const now = Tone.now()
-        loss.forEach((note, index) => {
-          sounds.value.synth.triggerAttackRelease(note, '8n', now + (index * 0.15))
+        
+        loss.forEach((item) => {
+          sounds.value.synth.triggerAttackRelease(item.note, '4n', now + item.time)
         })
+        
+        // Reset volume
+        setTimeout(() => {
+          sounds.value.synth.volume.value = -10
+        }, 2000)
       })
       
       sounds.value.chatSound = markRaw(() => {
-        sounds.value.synth.triggerAttackRelease('A4', '16n')
+        // Subtle chat notification - very quiet and brief
+        sounds.value.synth.volume.value = -25 // Much quieter
+        sounds.value.synth.triggerAttackRelease('E5', '64n') // Very short note
+        setTimeout(() => {
+          sounds.value.synth.volume.value = -10 // Reset volume
+        }, 50)
       })
       
       console.log('🔊 Sound system initialized')
