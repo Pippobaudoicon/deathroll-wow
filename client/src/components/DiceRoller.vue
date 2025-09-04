@@ -7,9 +7,9 @@
           <span v-if="gameStore.isMyTurn" class="text-wow-gold">🎯 Your Turn!</span>
           <span v-else>{{ gameStore.currentTurn.name }}'s Turn</span>
         </h3>
-        <p class="text-wow-text-secondary" v-if="gameStore.game?.currentRange">
+        <p class="text-wow-text-secondary" v-if="displayRange">
           Roll between <span class="text-wow-gold font-bold">1</span> and 
-          <span class="text-wow-gold font-bold">{{ gameStore.game.currentRange.max }}</span>
+          <span class="text-wow-gold font-bold">{{ displayRange.max }}</span>
         </p>
       </div>
 
@@ -85,6 +85,8 @@ const gameStore = useGameStore()
 const isRolling = ref(false)
 const displayNumber = ref(null)
 const showLastRoll = ref(true)
+const displayRange = ref(null) // Local range that delays updates during animation
+const isAnimating = ref(false) // Track if any animation is happening (for all players)
 
 // Computed - using gameStore directly to maintain reactivity
 const lastRoll = computed(() => {
@@ -95,10 +97,20 @@ const canRoll = computed(() => {
   return gameStore.isMyTurn && gameStore.connected && !isRolling.value
 })
 
-// Watch for new rolls to animate
+// Initialize displayRange
+watch(() => gameStore.game?.currentRange, (newRange) => {
+  if (!isAnimating.value) {
+    // Only update immediately if no animation is happening
+    displayRange.value = newRange
+  }
+  // If animating, the update will happen after animation completes
+}, { immediate: true })
+
+// Watch for new rolls to animate (this triggers for ALL players)
 watch(lastRoll, (newRoll, oldRoll) => {
   if (newRoll && newRoll.id !== oldRoll?.id) {
-    animateRoll(newRoll.result)
+    // Start animation for all players when any roll occurs
+    animateRoll(newRoll.result, newRoll.playerId === gameStore.currentPlayer?.id)
   }
 }, { immediate: false })
 
@@ -113,9 +125,17 @@ const handleRoll = async () => {
   gameStore.rollDice()
 }
 
-const animateRoll = async (result) => {
-  isRolling.value = true
-  displayNumber.value = null
+const animateRoll = async (result, isMyRoll = false) => {
+  // Set animation state for ALL players
+  isAnimating.value = true
+  
+  if (isMyRoll) {
+    isRolling.value = true
+    displayNumber.value = null
+  }
+  
+  // Preserve the current range during animation to avoid spoilers for ALL players
+  const originalRange = displayRange.value
   
   // Simulate dice rolling with random numbers
   const rollDuration = 1000 // 1 second
@@ -125,15 +145,24 @@ const animateRoll = async (result) => {
   let step = 0
   const rollTimer = setInterval(() => {
     if (step < rollSteps) {
-      // Show random numbers while rolling
-      const maxRange = gameStore.game?.currentRange?.max || 1000
-      displayNumber.value = Math.floor(Math.random() * maxRange) + 1
+      // Only show random numbers for the person rolling
+      if (isMyRoll) {
+        const maxRange = originalRange?.max || 1000
+        displayNumber.value = Math.floor(Math.random() * maxRange) + 1
+      }
       step++
     } else {
-      // Show final result
+      // Animation complete
       clearInterval(rollTimer)
-      displayNumber.value = result
-      isRolling.value = false
+      isAnimating.value = false
+      
+      if (isMyRoll) {
+        displayNumber.value = result
+        isRolling.value = false
+      }
+      
+      // Now update the display range with the new range from game store for ALL players
+      displayRange.value = gameStore.game?.currentRange
       
       // Show last roll info after a brief delay
       setTimeout(() => {
