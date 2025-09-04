@@ -197,7 +197,8 @@ onMounted(async () => {
 const handleCreateRoom = async () => {
   if (!hostName.value.trim()) return
   
-  gameStore.playSound('clickSound')
+  // Fire-and-forget sound play
+  gameStore.playSound('clickSound').catch(() => {}) // Silently handle any sound errors
   
   try {
     console.log('🏠 Creating room with host:', hostName.value.trim())
@@ -231,7 +232,8 @@ const handleCreateRoom = async () => {
 const handleJoinRoom = async () => {
   if (!playerName.value.trim() || !roomId.value.trim()) return
   
-  gameStore.playSound('clickSound')
+  // Fire-and-forget sound play
+  gameStore.playSound('clickSound').catch(() => {}) // Silently handle any sound errors
   
   try {
     console.log('🚪 Joining room:', roomId.value.trim(), 'as:', playerName.value.trim())

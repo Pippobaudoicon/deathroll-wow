@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, markRaw } from 'vue'
 import { io } from 'socket.io-client'
 import * as Tone from 'tone'
 
@@ -30,7 +30,8 @@ export const useGameStore = defineStore('game', () => {
     rollSound: null,
     winSound: null,
     loseSound: null,
-    chatSound: null
+    chatSound: null,
+    initialized: false
   })
   
   // Persistence functions
@@ -119,51 +120,67 @@ export const useGameStore = defineStore('game', () => {
   // Actions
   const initializeSound = async () => {
     try {
-      // Initialize Tone.js
-      await Tone.start()
-      
-      // Create synth for various sounds
-      sounds.value.synth = new Tone.Synth().toDestination()
-      
-      // Create specific sounds using Tone.js
-      sounds.value.clickSound = () => {
-        sounds.value.synth.triggerAttackRelease('C4', '8n')
+      // Skip if already initialized
+      if (sounds.value.synth && sounds.value.initialized) {
+        return true
       }
       
-      sounds.value.rollSound = () => {
+      // Initialize Tone.js - this requires user interaction
+      if (Tone.context.state === 'suspended') {
+        await Tone.start()
+      }
+      
+      // Double check that context is running
+      if (Tone.context.state !== 'running') {
+        console.warn('Audio context is not running, sounds may not play')
+        return false
+      }
+      
+      // Create synth for various sounds - use markRaw to prevent Vue reactivity
+      sounds.value.synth = markRaw(new Tone.Synth().toDestination())
+      
+      // Create specific sounds using Tone.js
+      sounds.value.clickSound = markRaw(() => {
+        sounds.value.synth.triggerAttackRelease('C4', '8n')
+      })
+      
+      sounds.value.rollSound = markRaw(() => {
         // Simulate dice roll with multiple quick notes
         const notes = ['C4', 'D4', 'E4', 'F4', 'G4']
         const now = Tone.now()
         notes.forEach((note, index) => {
           sounds.value.synth.triggerAttackRelease(note, '16n', now + (index * 0.1))
         })
-      }
+      })
       
-      sounds.value.winSound = () => {
+      sounds.value.winSound = markRaw(() => {
         // Victory fanfare
         const fanfare = ['C5', 'E5', 'G5', 'C6']
         const now = Tone.now()
         fanfare.forEach((note, index) => {
           sounds.value.synth.triggerAttackRelease(note, '4n', now + (index * 0.2))
         })
-      }
+      })
       
-      sounds.value.loseSound = () => {
+      sounds.value.loseSound = markRaw(() => {
         // Descending loss sound
         const loss = ['G4', 'F4', 'E4', 'D4', 'C4']
         const now = Tone.now()
         loss.forEach((note, index) => {
           sounds.value.synth.triggerAttackRelease(note, '8n', now + (index * 0.15))
         })
-      }
+      })
       
-      sounds.value.chatSound = () => {
+      sounds.value.chatSound = markRaw(() => {
         sounds.value.synth.triggerAttackRelease('A4', '16n')
-      }
+      })
       
       console.log('🔊 Sound system initialized')
+      sounds.value.initialized = true
+      return true
     } catch (err) {
       console.warn('Failed to initialize sound:', err)
+      return false
     }
   }
   
@@ -303,7 +320,7 @@ export const useGameStore = defineStore('game', () => {
       currentTurn.value = data.game.currentPlayer
       rolls.value = data.game.rolls || []
       messages.value = data.room.messages
-      sounds.value.rollSound?.()
+      playSound('rollSound')
     })
     
     // Dice rolled
@@ -320,12 +337,12 @@ export const useGameStore = defineStore('game', () => {
       // Play appropriate sound
       if (roll.isEliminating) {
         if (roll.playerId === currentPlayer.value?.id) {
-          sounds.value.loseSound?.()
+          playSound('loseSound')
         } else {
-          sounds.value.rollSound?.()
+          playSound('rollSound')
         }
       } else {
-        sounds.value.rollSound?.()
+        playSound('rollSound')
       }
     })
     
@@ -342,9 +359,9 @@ export const useGameStore = defineStore('game', () => {
       
       // Play win/lose sound
       if (data.winner?.id === currentPlayer.value?.id) {
-        sounds.value.winSound?.()
+        playSound('winSound')
       } else {
-        sounds.value.loseSound?.()
+        playSound('loseSound')
       }
     })
     
@@ -366,7 +383,7 @@ export const useGameStore = defineStore('game', () => {
     socket.value.on('new-message', (message) => {
       messages.value.push(message)
       if (message.playerId !== currentPlayer.value?.id) {
-        sounds.value.chatSound?.()
+        playSound('chatSound')
       }
     })
     
@@ -437,7 +454,7 @@ export const useGameStore = defineStore('game', () => {
   const startGame = (startingRoll = 1000) => {
     if (socket.value && canStartGame.value) {
       socket.value.emit('start-game', { startingRoll })
-      sounds.value.clickSound?.()
+      playSound('clickSound')
     }
   }
   
@@ -460,7 +477,7 @@ export const useGameStore = defineStore('game', () => {
   const resetGame = () => {
     if (socket.value && isHost.value) {
       socket.value.emit('reset-game')
-      sounds.value.clickSound?.()
+      playSound('clickSound')
     }
   }
   
@@ -493,8 +510,28 @@ export const useGameStore = defineStore('game', () => {
     error.value = null
   }
   
-  const playSound = (soundName) => {
-    sounds.value[soundName]?.()
+  const playSound = async (soundName) => {
+    try {
+      // Try to initialize sound if not already done
+      if (!sounds.value.synth) {
+        const initialized = await initializeSound()
+        if (!initialized) return // Skip if initialization failed
+      }
+      
+      // Check if Tone context is running, if not try to start it
+      if (Tone.context.state !== 'running') {
+        await Tone.start()
+      }
+      
+      // Play the requested sound
+      if (sounds.value[soundName] && Tone.context.state === 'running') {
+        sounds.value[soundName]()
+      } else {
+        console.warn(`Audio context not ready to play ${soundName}, state: ${Tone.context.state}`)
+      }
+    } catch (err) {
+      console.warn(`Failed to play sound ${soundName}:`, err)
+    }
   }
   
   return {

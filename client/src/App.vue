@@ -11,6 +11,13 @@ import { useGameStore } from './stores/game'
 const gameStore = useGameStore()
 
 onMounted(() => {
+  // Initialize audio context on first user interaction
+  const initAudioOnClick = () => {
+    gameStore.initializeSound().catch(() => {})
+  }
+  document.addEventListener('click', initAudioOnClick, { once: true })
+  document.addEventListener('touchstart', initAudioOnClick, { once: true })
+  
   // Handle page refresh/close
   const handleBeforeUnload = () => {
     gameStore.disconnect()
