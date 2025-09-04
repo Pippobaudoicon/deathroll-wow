@@ -69,7 +69,7 @@ app.get('/api/rooms/:roomId', (req, res) => {
 // Socket.IO connection handling
 socketHandler(io, { gameController, roomController });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3040;
 
 server.listen(PORT, () => {
   console.log(`🎮 Deathroll WoW Server running on port ${PORT}`);
