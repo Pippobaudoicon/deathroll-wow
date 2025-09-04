@@ -123,7 +123,7 @@
         </div>
 
         <!-- Connection Status -->
-        <div class="text-center">
+        <!-- <div class="text-center">
           <div class="flex items-center justify-center space-x-2">
             <div :class="[
               'status-indicator',
@@ -133,7 +133,7 @@
               {{ connected ? 'Connected to server' : 'Disconnected from server' }}
             </span>
           </div>
-        </div>
+        </div> -->
       </div>
     </div>
   </div>
@@ -157,9 +157,6 @@ const autoReconnecting = ref(false)
 const { loading, error, connected } = gameStore
 
 onMounted(async () => {
-  // Initialize sound
-  gameStore.initializeSound()
-  
   // Connect to server to show connection status
   gameStore.connect()
   

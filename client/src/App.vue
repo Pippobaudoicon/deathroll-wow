@@ -11,9 +11,6 @@ import { useGameStore } from './stores/game'
 const gameStore = useGameStore()
 
 onMounted(() => {
-  // Initialize sound system
-  gameStore.initializeSound()
-  
   // Handle page refresh/close
   const handleBeforeUnload = () => {
     gameStore.disconnect()
