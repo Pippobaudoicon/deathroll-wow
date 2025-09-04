@@ -1,7 +1,8 @@
 import { io } from 'socket.io-client'
+import { SOCKET_URL } from '@/config/env'
 
 // Socket connection utility
-export const createSocket = (url = 'http://localhost:3001', options = {}) => {
+export const createSocket = (url = SOCKET_URL, options = {}) => {
   const defaultOptions = {
     autoConnect: false,
     reconnection: true,

@@ -42,7 +42,7 @@ echo "📊 PM2 Status:"
 pm2 status
 
 echo "✅ Deployment completed!"
-echo "🌐 Your Deathroll WoW server should now be running on port 3001"
+echo "🌐 Your Deathroll WoW server should now be running on port 3040"
 echo ""
 echo "Useful PM2 commands:"
 echo "  pm2 status          - Show all processes"

@@ -2,12 +2,12 @@
 
 const config = {
   development: {
-    API_URL: 'http://localhost:3040',
-    SOCKET_URL: 'http://localhost:3040'
+    API_URL: import.meta.env.VITE_API_URL || 'http://localhost:3040',
+    SOCKET_URL: import.meta.env.VITE_SOCKET_URL || 'http://localhost:3040'
   },
   production: {
-    API_URL: 'https://deathroll.tommasolopiparo.com', // Update with your actual domain
-    SOCKET_URL: 'https://deathroll.tommasolopiparo.com' // Update with your actual domain
+    API_URL: import.meta.env.VITE_API_URL || 'https://deathroll.tommasolopiparo.com',
+    SOCKET_URL: import.meta.env.VITE_SOCKET_URL || 'https://deathroll.tommasolopiparo.com'
   }
 }
 

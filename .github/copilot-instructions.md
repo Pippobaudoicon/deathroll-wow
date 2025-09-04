@@ -20,7 +20,7 @@ A complete, real-time, multiplayer web application that recreates the "Deathroll
 **Backend:** Node.js, Express.js, Socket.IO, CORS
 
 ## Running the Application
-1. **Server**: `cd server && npm run dev` (runs on http://localhost:3001)
+1. **Server**: `cd server && npm run dev` (runs on http://localhost:3040)
 2. **Client**: `cd client && npm run dev` (runs on http://localhost:5173)
 
 ## Development Status - ✅ COMPLETED

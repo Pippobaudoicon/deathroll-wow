@@ -61,30 +61,35 @@ pm2 save
 ```nginx
 server {
     listen 80;
-    server_name your-domain.com www.your-domain.com;
+    server_name deathroll.tommasolopiparo.com;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name your-domain.com www.your-domain.com;
+    server_name deathroll.tommasolopiparo.com;
 
-    # SSL Configuration (add your SSL certificate paths)
-    ssl_certificate /path/to/your/certificate.crt;
-    ssl_certificate_key /path/to/your/private.key;
+    access_log /var/log/nginx/deathroll.access.log;
+    error_log /var/log/nginx/deathroll.error.log;
 
-    # Serve built client files
+    # SSL Configuration (managed by Certbot)
+    ssl_certificate /etc/letsencrypt/live/deathroll.tommasolopiparo.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/deathroll.tommasolopiparo.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Serve built client files directly from Nginx
     root /path/to/your/deathroll-wow/client/dist;
     index index.html;
 
-    # Handle client-side routing
+    # Handle client-side routing - serve index.html for all routes
     location / {
         try_files $uri $uri/ /index.html;
     }
 
     # Proxy API requests to Node.js server
     location /api/ {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:3040;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -97,7 +102,7 @@ server {
 
     # Proxy Socket.IO connections
     location /socket.io/ {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:3040;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -143,20 +148,20 @@ pm2 describe deathroll-wow-server
 The application supports these environment variables:
 
 - `NODE_ENV`: Set to `production` for production deployment
-- `PORT`: Server port (default: 3001)
+- `PORT`: Server port (default: 3040 in production, 3005 in development)
 - `CORS_ORIGIN`: Allowed CORS origin (your domain)
 
 ## Troubleshooting
 
 ### Check if server is running:
 ```bash
-curl http://localhost:3001/api/health
+curl http://localhost:3040/api/health
 ```
 
 ### Check Socket.IO connection:
 ```bash
 # Should return Socket.IO response
-curl http://localhost:3001/socket.io/
+curl http://localhost:3040/socket.io/
 ```
 
 ### View server logs:

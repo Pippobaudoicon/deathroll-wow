@@ -60,7 +60,7 @@ npm install
 cd server
 npm run dev
 ```
-The server will start on http://localhost:3001
+The server will start on http://localhost:3040
 
 2. Start the client (from the `client` directory):
 ```bash
@@ -107,7 +107,7 @@ deathroll-wow/
 ## Development
 
 ### Server Development
-The server runs on port 3001 and provides:
+The server runs on port 3040 and provides:
 - RESTful API endpoints
 - Socket.IO real-time communication
 - Game state management
