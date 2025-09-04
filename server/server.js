@@ -10,9 +10,19 @@ const socketHandler = require('./src/socket/socketHandler');
 
 const app = express();
 const server = http.createServer(app);
+
+// Environment-based CORS configuration
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const allowedOrigins = isDevelopment 
+  ? ["http://localhost:5173", "http://127.0.0.1:5173"]
+  : [process.env.CORS_ORIGIN || "https://deathroll.tommasolopiparo.com"];
+
+console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`🔗 Allowed CORS origins:`, allowedOrigins);
+
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -20,7 +30,7 @@ const io = socketIo(server, {
 
 // Middleware
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());

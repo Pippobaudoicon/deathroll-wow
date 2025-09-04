@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, markRaw } from 'vue'
 import { io } from 'socket.io-client'
 import * as Tone from 'tone'
+import { API_URL, SOCKET_URL } from '@/config/env'
 
 export const useGameStore = defineStore('game', () => {
   // State
@@ -252,7 +253,7 @@ export const useGameStore = defineStore('game', () => {
     }
     
     console.log('🔌 Creating new socket connection...')
-    socket.value = io('http://localhost:3001', {
+    socket.value = io(SOCKET_URL, {
       autoConnect: false,
       reconnection: true,
       reconnectionDelay: 1000,
@@ -538,7 +539,7 @@ export const useGameStore = defineStore('game', () => {
   
   const checkRoomExists = async (roomId) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/rooms/${roomId}`)
+      const response = await fetch(`${API_URL}/api/rooms/${roomId}`)
       return response.ok
     } catch {
       return false
