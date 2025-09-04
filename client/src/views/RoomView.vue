@@ -44,8 +44,15 @@
             >
               🔄 New Game
             </button>
-            <button @click="copyRoomId" class="wow-button">
-              📋 Copy Room ID
+            <button 
+              @click="copyRoomId" 
+              :class="[
+                'wow-button transition-colors duration-300',
+                copyFeedback ? 'bg-green-600 border-green-500 text-white' : ''
+              ]"
+              :disabled="copyFeedback"
+            >
+              {{ copyFeedback ? '✅ Copied!' : '📋 Copy Room ID' }}
             </button>
             <button @click="handleLeaveRoom" class="wow-button-danger">
               🚪 Leave Room
@@ -184,6 +191,7 @@ const gameStore = useGameStore()
 
 // Local state
 const startingRoll = ref(1000)
+const copyFeedback = ref(false)
 
 // Props
 const props = defineProps({
@@ -271,8 +279,13 @@ const handleLeaveRoom = () => {
 const copyRoomId = async () => {
   try {
     await navigator.clipboard.writeText(props.roomId)
-    gameStore.playSound('clickSound')
-    // You could add a toast notification here
+    // Show success feedback
+    copyFeedback.value = true
+    // Reset feedback after 2 seconds
+    setTimeout(() => {
+      copyFeedback.value = false
+    }, 2000)
+    
   } catch (err) {
     console.error('Failed to copy room ID:', err)
   }
