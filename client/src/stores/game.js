@@ -107,8 +107,7 @@ export const useGameStore = defineStore('game', () => {
   // Computed
   const isHost = computed(() => currentPlayer.value?.isHost || false)
   const canStartGame = computed(() => {
-    return isHost.value && 
-           gameStatus.value === 'lobby' && 
+    return gameStatus.value === 'lobby' && 
            (players.value || []).filter(p => !p.isEliminated).length >= 2
   })
   const isMyTurn = computed(() => {

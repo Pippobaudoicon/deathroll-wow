@@ -66,6 +66,35 @@
         <div class="lg:col-span-2 space-y-6">
           <!-- Game Status -->
           <!-- <GameStatus /> -->
+
+          <!-- Winner Announcement -->
+          <div v-if="gameStore.gameStatus === 'finished' && gameStore.winner" class="text-center">
+            <!-- Victory for the winner -->
+            <div v-if="gameStore.winner.id === gameStore.currentPlayer?.id" class="wow-card winner-announcement">
+              <h2 class="text-4xl font-bold text-wow-gold mb-4">
+                🏆 VICTORY! 🏆
+              </h2>
+              <p class="text-2xl text-wow-text-primary mb-2">
+                You win the Deathroll!
+              </p>
+              <p class="text-wow-text-secondary">
+                The dice have spoken. Glory to you!
+              </p>
+            </div>
+            
+            <!-- Defeat for everyone else -->
+            <div v-else class="wow-card defeat-announcement">
+              <h2 class="text-4xl font-bold text-wow-red mb-4">
+                💀 DEFEAT 💀
+              </h2>
+              <p class="text-2xl text-wow-text-primary mb-2">
+                {{ gameStore.winner.name }} wins the Deathroll!
+              </p>
+              <p class="text-wow-text-secondary">
+                The dice have spoken. Better luck next time!
+              </p>
+            </div>
+          </div>
           
           <!-- Dice & Current Turn -->
           <DiceRoller v-if="gameStore.gameStatus === 'playing'" />
@@ -94,7 +123,7 @@
               </div>
               
               <div class="mb-4 text-sm text-wow-text-muted">
-                Debug: isHost={{ gameStore.isHost }}, canStartGame={{ gameStore.canStartGame }}, 
+                Debug: canStartGame={{ gameStore.canStartGame }}, 
                 gameStatus={{ gameStore.gameStatus }}, playerCount={{ gameStore.players.length }}
               </div>
               <p class="text-wow-text-secondary mb-4">
@@ -113,35 +142,6 @@
               </p>
               <p v-else class="text-wow-text-muted">
                 Waiting for {{ gameStore.room.hostName }} to start the game...
-              </p>
-            </div>
-          </div>
-
-          <!-- Winner Announcement -->
-          <div v-if="gameStore.gameStatus === 'finished' && gameStore.winner" class="text-center">
-            <!-- Victory for the winner -->
-            <div v-if="gameStore.winner.id === gameStore.currentPlayer?.id" class="wow-card winner-announcement">
-              <h2 class="text-4xl font-bold text-wow-gold mb-4">
-                🏆 VICTORY! 🏆
-              </h2>
-              <p class="text-2xl text-wow-text-primary mb-2">
-                You win the Deathroll!
-              </p>
-              <p class="text-wow-text-secondary">
-                The dice have spoken. Glory to you!
-              </p>
-            </div>
-            
-            <!-- Defeat for everyone else -->
-            <div v-else class="wow-card defeat-announcement">
-              <h2 class="text-4xl font-bold text-wow-red mb-4">
-                💀 DEFEAT 💀
-              </h2>
-              <p class="text-2xl text-wow-text-primary mb-2">
-                {{ gameStore.winner.name }} wins the Deathroll!
-              </p>
-              <p class="text-wow-text-secondary">
-                The dice have spoken. Better luck next time!
               </p>
             </div>
           </div>
@@ -179,7 +179,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 
 // Components
-import GameStatus from '@/components/GameStatus.vue'
+// import GameStatus from '@/components/GameStatus.vue'
 import DiceRoller from '@/components/DiceRoller.vue'
 import PlayersList from '@/components/PlayersList.vue'
 import ChatBox from '@/components/ChatBox.vue'

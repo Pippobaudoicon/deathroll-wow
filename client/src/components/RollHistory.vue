@@ -8,7 +8,7 @@
     </div>
 
     <!-- Roll list -->
-    <div class="space-y-2 max-h-80 overflow-y-auto">
+    <div class="space-y-2 max-h-70 overflow-y-auto">
       <div
         v-for="(roll, index) in reversedRolls"
         :key="roll.id"
