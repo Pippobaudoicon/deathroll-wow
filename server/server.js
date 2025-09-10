@@ -15,7 +15,7 @@ const server = http.createServer(app);
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const allowedOrigins = isDevelopment 
   ? ["http://localhost:5173", "http://127.0.0.1:5173"]
-  : [process.env.CORS_ORIGIN || "https://deathroll.tommasolopiparo.com"];
+  : [process.env.CORS_ORIGIN || "https://deathroll.xyz"];
 
 console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🔗 Allowed CORS origins:`, allowedOrigins);

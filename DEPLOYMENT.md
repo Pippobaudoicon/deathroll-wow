@@ -61,20 +61,20 @@ pm2 save
 ```nginx
 server {
     listen 80;
-    server_name deathroll.tommasolopiparo.com;
+    server_name deathroll.xyz;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name deathroll.tommasolopiparo.com;
+    server_name deathroll.xyz;
 
     access_log /var/log/nginx/deathroll.access.log;
     error_log /var/log/nginx/deathroll.error.log;
 
     # SSL Configuration (managed by Certbot)
-    ssl_certificate /etc/letsencrypt/live/deathroll.tommasolopiparo.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/deathroll.tommasolopiparo.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/deathroll.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/deathroll.xyz/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 

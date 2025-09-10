@@ -34,7 +34,7 @@ module.exports = {
       
       // Environment variables for production
       env_vars: {
-        'CORS_ORIGIN': 'https://deathroll.tommasolopiparo.com' // Update with your actual domain
+        'CORS_ORIGIN': 'https://deathroll.xyz' // Update with your actual domain
       }
     }
   ]
