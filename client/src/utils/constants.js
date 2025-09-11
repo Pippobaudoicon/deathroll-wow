@@ -55,6 +55,7 @@ export const SOCKET_EVENTS = {
   NEW_MESSAGE: 'new-message',
   LEFT_ROOM: 'left-room',
   PLAYER_DISCONNECTED: 'player-disconnected',
+  PLAYER_RECONNECTED: 'player-reconnected',
   ROOM_INFO: 'room-info',
   ERROR: 'error',
   PONG: 'pong',

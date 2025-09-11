@@ -20,13 +20,17 @@ const socketHandler = (io, { gameController, roomController }) => {
           return;
         }
 
-        const player = roomController.joinRoom(roomId, playerName.trim(), socket.id, isGuest);
+        const result = roomController.joinRoom(roomId, playerName.trim(), socket.id, isGuest);
         const room = roomController.getRoom(roomId);
         
         if (!room) {
           socket.emit('error', { message: 'Room not found' });
           return;
         }
+
+        // Check if this was a reconnection
+        const isReconnection = result.isReconnection;
+        const player = result.player || result;
 
         // Join socket room
         socket.join(roomId);
@@ -38,11 +42,18 @@ const socketHandler = (io, { gameController, roomController }) => {
           game: room.game ? room.game.toJSON() : null
         });
         
-        // Notify other players
-        socket.to(roomId).emit('room-updated', room.toJSON());
-        socket.to(roomId).emit('player-list-updated', room.getAllPlayers());
-        
-        console.log(`✅ Player ${playerName} joined room ${roomId}`);
+        // Notify other players with appropriate message
+        if (isReconnection) {
+          // For reconnections, send updated room info
+          socket.to(roomId).emit('room-updated', room.toJSON());
+          socket.to(roomId).emit('player-list-updated', room.getAllPlayers());
+          console.log(`🔄 Player ${playerName} reconnected to room ${roomId}`);
+        } else {
+          // For new joins
+          socket.to(roomId).emit('room-updated', room.toJSON());
+          socket.to(roomId).emit('player-list-updated', room.getAllPlayers());
+          console.log(`✅ Player ${playerName} joined room ${roomId}`);
+        }
         
       } catch (error) {
         console.error('Join room error:', error.message);
@@ -243,13 +254,32 @@ const socketHandler = (io, { gameController, roomController }) => {
       if (result) {
         const { player, room } = result;
         
-        // Notify remaining players
+        // Notify remaining players with updated info including disconnect message
         socket.to(room.id).emit('player-disconnected', {
           player: player.toJSON(),
           room: room.toJSON()
         });
+        socket.to(room.id).emit('player-list-updated', room.getAllPlayers());
         
         console.log(`👋 Player ${player.name} disconnected from room ${room.id}`);
+      }
+    });
+
+    // Handle reconnect
+    socket.on('reconnect', () => {
+      console.log(`🔄 Client reconnected: ${socket.id}`);
+
+      const result = roomController.handlePlayerReconnect(socket.id);
+      if (result) {
+        const { player, room } = result;
+        
+        // Notify remaining players
+        socket.to(room.id).emit('player-reconnected', {
+          player: player.toJSON(),
+          room: room.toJSON()
+        });
+
+        console.log(`👋 Player ${player.name} reconnected to room ${room.id}`);
       }
     });
 

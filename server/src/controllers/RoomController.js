@@ -70,8 +70,11 @@ class RoomController {
       this.playerToRoom.set(existingPlayerByName.id, roomId);
       this.socketToPlayer.set(socketId, existingPlayerByName.id);
       
+      // Add reconnection message to chat
+      room.addSystemMessage(`${playerName} reconnected`);
+      
       console.log(`✅ Player ${playerName} reconnected to room ${roomId}`);
-      return existingPlayerByName;
+      return { player: existingPlayerByName, isReconnection: true };
     }
 
     // Create new player
@@ -90,7 +93,7 @@ class RoomController {
     this.socketToPlayer.set(socketId, playerId);
 
     console.log(`👤 Player ${playerName} joined room ${roomId}`);
-    return player;
+    return { player, isReconnection: false };
   }
 
   leaveRoom(socketId) {
@@ -140,8 +143,27 @@ class RoomController {
   }
 
   handlePlayerDisconnect(socketId) {
-    // Use disconnectPlayer for socket disconnections to allow reconnections
-    return this.disconnectPlayer(socketId);
+    const playerId = this.socketToPlayer.get(socketId);
+    if (!playerId) return null;
+
+    const roomId = this.playerToRoom.get(playerId);
+    if (!roomId) return null;
+
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+
+    const player = room.getPlayer(playerId);
+    if (!player) return null;
+
+    // Mark player as disconnected but keep them in the room for potential reconnection
+    player.isConnected = false;
+    room.addSystemMessage(`${player.name} disconnected`);
+    
+    // Clean up socket mapping but keep player mapping for reconnection
+    this.socketToPlayer.delete(socketId);
+
+    console.log(`🔌 Player ${player.name} disconnected from room ${roomId}`);
+    return { player, room };
   }
 
   getPlayerRoom(socketId) {
@@ -165,19 +187,6 @@ class RoomController {
     if (!room) return null;
 
     return room.getPlayer(playerId);
-  }
-
-  handlePlayerDisconnect(socketId) {
-    const player = this.getPlayerFromSocket(socketId);
-    const room = this.getPlayerRoom(socketId);
-    
-    if (!player || !room) return null;
-
-    player.disconnect();
-    room.addSystemMessage(`${player.name} disconnected`);
-    
-    console.log(`🔌 Player ${player.name} disconnected from room ${room.id}`);
-    return { player, room };
   }
 
   handlePlayerReconnect(socketId, playerId) {
