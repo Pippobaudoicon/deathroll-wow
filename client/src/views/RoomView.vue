@@ -278,7 +278,7 @@ const handleLeaveRoom = () => {
 
 const copyRoomId = async () => {
   try {
-    await navigator.clipboard.writeText(props.roomId)
+    await navigator.clipboard.writeText(`${window.location.origin}?room=${props.roomId}`)
     // Show success feedback
     copyFeedback.value = true
     // Reset feedback after 2 seconds
