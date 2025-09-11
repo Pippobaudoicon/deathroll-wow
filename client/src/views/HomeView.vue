@@ -1,6 +1,12 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4">
-    <div class="max-w-2xl w-full">
+  <div 
+    class="min-h-screen flex items-center justify-center p-4 transition-all duration-500"
+    :class="[
+      'faction-theme',
+      gameStore.selectedFaction === 'alliance' ? 'alliance-theme' : 'horde-theme'
+    ]"
+  >
+    <div class="max-w-2xl w-full relative">
       <!-- Header -->
       <div class="text-center mb-8">
         <h1 class="wow-heading text-6xl mb-4">
@@ -22,6 +28,10 @@
         </div>
       </div>
 
+            <!-- Faction Selector - Top Right Corner -->
+      <div class="flex justify-center mb-8">
+        <FactionSelector />
+      </div>
       <!-- Main Menu -->
       <div class="wow-card space-y-6">
         <div class="grid md:grid-cols-2 gap-6">
@@ -88,7 +98,10 @@
             </div>
           </div>
         </div>
+      </div>
 
+      <!-- Game Info Container -->
+      <div class="space-y-6 mt-6">
         <!-- Error Display -->
         <div v-if="error" class="wow-panel p-4 bg-wow-red bg-opacity-20 border-wow-red">
           <div class="flex items-center justify-between">
@@ -124,7 +137,7 @@
             </li>
           </ul>
         </div>
-      </div>
+      </div> <!-- Close Game Info Container -->
     </div>
   </div>
 </template>
@@ -134,6 +147,7 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import { API_URL } from '@/config/env'
+import FactionSelector from '@/components/FactionSelector.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -247,3 +261,73 @@ const clearError = () => {
   gameStore.clearError()
 }
 </script>
+
+<style scoped>
+/* Faction Theme Styles */
+.faction-theme {
+  transition: all 0.5s ease-in-out;
+}
+
+.alliance-theme {
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.05) 0%, rgba(0, 0, 0, 0.9) 100%);
+}
+
+.horde-theme {
+  background: linear-gradient(135deg, rgba(220, 20, 60, 0.05) 0%, rgba(0, 0, 0, 0.9) 100%);
+}
+
+/* Alliance themed cards */
+.alliance-theme .wow-card {
+  border-color: rgba(74, 144, 226, 0.3);
+  background: linear-gradient(145deg, rgba(74, 144, 226, 0.05) 0%, rgba(26, 26, 26, 0.95) 100%);
+}
+
+.alliance-theme .wow-card:hover {
+  border-color: rgba(74, 144, 226, 0.5);
+  box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
+}
+
+.alliance-theme .wow-heading {
+  color: #87CEEB;
+  text-shadow: 0 0 15px rgba(74, 144, 226, 0.6);
+}
+
+/* Horde themed cards */
+.horde-theme .wow-card {
+  border-color: rgba(220, 20, 60, 0.3);
+  background: linear-gradient(145deg, rgba(220, 20, 60, 0.05) 0%, rgba(26, 26, 26, 0.95) 100%);
+}
+
+.horde-theme .wow-card:hover {
+  border-color: rgba(220, 20, 60, 0.5);
+  box-shadow: 0 0 20px rgba(220, 20, 60, 0.2);
+}
+
+.horde-theme .wow-heading {
+  color: #FFB6C1;
+  text-shadow: 0 0 15px rgba(220, 20, 60, 0.6);
+}
+
+/* Button theming */
+.alliance-theme .wow-button-primary {
+  background: linear-gradient(145deg, #4A90E2 0%, #2c5aa0 100%);
+  border-color: #4A90E2;
+  color: #87CEEB;
+}
+
+.alliance-theme .wow-button-primary:hover {
+  background: linear-gradient(145deg, #5ba0f2 0%, #3c6ab0 100%);
+  box-shadow: 0 0 15px rgba(74, 144, 226, 0.5);
+}
+
+.horde-theme .wow-button-primary {
+  background: linear-gradient(145deg, #DC143C 0%, #a0102c 100%);
+  border-color: #DC143C;
+  color: #FFB6C1;
+}
+
+.horde-theme .wow-button-primary:hover {
+  background: linear-gradient(145deg, #ec244c 0%, #b0203c 100%);
+  box-shadow: 0 0 15px rgba(220, 20, 60, 0.5);
+}
+</style>

@@ -24,6 +24,9 @@ export const useGameStore = defineStore('game', () => {
   const winner = ref(null)
   const rolls = ref([])
   
+    // Faction State
+  const selectedFaction = ref('horde') // 'alliance' or 'horde'
+
   // Sound
   const sounds = ref({
     synth: null,
@@ -451,6 +454,12 @@ export const useGameStore = defineStore('game', () => {
     socket.value.on('player-disconnected', (data) => {
       players.value = data.room.players
       messages.value = data.room.messages
+    })  
+    
+    // Player reconnect
+    socket.value.on('player-reconnected', (data) => {
+      players.value = data.room.players
+      messages.value = data.room.messages
     })
   }
 
@@ -588,6 +597,34 @@ export const useGameStore = defineStore('game', () => {
       console.warn(`Failed to play sound ${soundName}:`, err)
     }
   }
+
+  // Faction functions
+  const saveFaction = (faction) => {
+    try {
+      localStorage.setItem('deathroll-faction', faction)
+      console.log('💾 Faction saved to localStorage:', faction)
+    } catch (err) {
+      console.warn('Failed to save faction:', err)
+    }
+  }
+
+  const getSavedFaction = () => {
+    try {
+      const saved = localStorage.getItem('deathroll-faction')
+      return saved || 'horde'
+    } catch (err) {
+      console.warn('Failed to retrieve saved faction:', err)
+      return 'horde'
+    }
+  }
+
+  const setFaction = (faction) => {
+    selectedFaction.value = faction
+    saveFaction(faction)
+  }
+
+  // Initialize faction from localStorage
+  selectedFaction.value = getSavedFaction()
   
   return {
     // State
@@ -604,6 +641,7 @@ export const useGameStore = defineStore('game', () => {
     gameStatus,
     winner,
     rolls,
+    selectedFaction,
     
     // Computed
     isHost,
@@ -625,6 +663,7 @@ export const useGameStore = defineStore('game', () => {
     resetState,
     clearError,
     playSound,
+    setFaction,
     
     // Persistence
     getSavedRoomState,

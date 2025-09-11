@@ -1,5 +1,11 @@
 <template>
-  <div class="min-h-screen p-4">
+  <div 
+    class="min-h-screen p-4 transition-all duration-500"
+    :class="[
+      'faction-theme',
+      gameStore.selectedFaction === 'alliance' ? 'alliance-theme' : 'horde-theme'
+    ]"
+  >
     <!-- Loading State -->
     <div v-if="gameStore.loading" class="flex items-center justify-center min-h-screen">
       <div class="wow-card text-center">
@@ -36,27 +42,35 @@
               <span class="text-sm">{{ gameStore.connected ? 'Connected' : 'Disconnected' }}</span>
             </div>
           </div>
-          <div class="flex space-x-2 mt-4 md:mt-0">
-            <button
-              v-if="gameStore.gameStatus === 'finished' && gameStore.isHost"
-              @click="handleResetGame"
-              class="wow-button-primary"
-            >
-              🔄 New Game
-            </button>
-            <button 
-              @click="copyRoomId" 
-              :class="[
-                'wow-button transition-colors duration-300',
-                copyFeedback ? 'bg-green-600 border-green-500 text-white' : ''
-              ]"
-              :disabled="copyFeedback"
-            >
-              {{ copyFeedback ? '✅ Copied!' : '📋 Copy Room ID' }}
-            </button>
-            <button @click="handleLeaveRoom" class="wow-button-danger">
-              🚪 Leave Room
-            </button>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mt-4 md:mt-0">
+            <!-- Faction Selector -->
+            <div class="order-2 sm:order-1">
+              <FactionSelector />
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-2 order-1 sm:order-2">
+              <button
+                v-if="gameStore.gameStatus === 'finished' && gameStore.isHost"
+                @click="handleResetGame"
+                class="wow-button-primary text-sm sm:text-base"
+              >
+                🔄 New Game
+              </button>
+              <button 
+                @click="copyRoomId" 
+                :class="[
+                  'wow-button transition-colors duration-300 text-sm sm:text-base',
+                  copyFeedback ? 'bg-green-600 border-green-500 text-white' : ''
+                ]"
+                :disabled="copyFeedback"
+              >
+                {{ copyFeedback ? '✅ Copied!' : '📋 Copy Room ID' }}
+              </button>
+              <button @click="handleLeaveRoom" class="wow-button-danger text-sm sm:text-base">
+                🚪 Leave Room
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -184,6 +198,7 @@ import DiceRoller from '@/components/DiceRoller.vue'
 import PlayersList from '@/components/PlayersList.vue'
 import ChatBox from '@/components/ChatBox.vue'
 import RollHistory from '@/components/RollHistory.vue'
+import FactionSelector from '@/components/FactionSelector.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -296,3 +311,92 @@ const goHome = () => {
   router.push('/')
 }
 </script>
+
+<style scoped>
+/* Faction Theme Styles */
+.faction-theme {
+  transition: all 0.5s ease-in-out;
+}
+
+.alliance-theme {
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.05) 0%, rgba(0, 0, 0, 0.8) 100%);
+}
+
+.horde-theme {
+  background: linear-gradient(135deg, rgba(220, 20, 60, 0.05) 0%, rgba(0, 0, 0, 0.8) 100%);
+}
+
+/* Alliance themed cards */
+.alliance-theme .wow-card {
+  border-color: rgba(74, 144, 226, 0.3);
+  background: linear-gradient(145deg, rgba(74, 144, 226, 0.05) 0%, rgba(26, 26, 26, 0.95) 100%);
+}
+
+.alliance-theme .wow-card:hover {
+  border-color: rgba(74, 144, 226, 0.5);
+  box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
+}
+
+.alliance-theme .wow-heading {
+  color: #87CEEB;
+  text-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
+}
+
+/* Horde themed cards */
+.horde-theme .wow-card {
+  border-color: rgba(220, 20, 60, 0.3);
+  background: linear-gradient(145deg, rgba(220, 20, 60, 0.05) 0%, rgba(26, 26, 26, 0.95) 100%);
+}
+
+.horde-theme .wow-card:hover {
+  border-color: rgba(220, 20, 60, 0.5);
+  box-shadow: 0 0 20px rgba(220, 20, 60, 0.2);
+}
+
+.horde-theme .wow-heading {
+  color: #FFB6C1;
+  text-shadow: 0 0 10px rgba(220, 20, 60, 0.5);
+}
+
+/* Button theming */
+.alliance-theme .wow-button-primary {
+  background: linear-gradient(145deg, #4A90E2 0%, #2c5aa0 100%);
+  border-color: #4A90E2;
+  color: #87CEEB;
+}
+
+.alliance-theme .wow-button-primary:hover {
+  background: linear-gradient(145deg, #5ba0f2 0%, #3c6ab0 100%);
+  box-shadow: 0 0 15px rgba(74, 144, 226, 0.5);
+}
+
+.horde-theme .wow-button-primary {
+  background: linear-gradient(145deg, #DC143C 0%, #a0102c 100%);
+  border-color: #DC143C;
+  color: #FFB6C1;
+}
+
+.horde-theme .wow-button-primary:hover {
+  background: linear-gradient(145deg, #ec244c 0%, #b0203c 100%);
+  box-shadow: 0 0 15px rgba(220, 20, 60, 0.5);
+}
+
+/* Victory/Defeat theming */
+.alliance-theme .winner-announcement {
+  border-color: #4A90E2;
+  background: radial-gradient(circle, rgba(74, 144, 226, 0.2) 0%, rgba(26, 26, 26, 0.9) 100%);
+}
+
+.alliance-theme .defeat-announcement {
+  border-color: rgba(74, 144, 226, 0.3);
+}
+
+.horde-theme .winner-announcement {
+  border-color: #DC143C;
+  background: radial-gradient(circle, rgba(220, 20, 60, 0.2) 0%, rgba(26, 26, 26, 0.9) 100%);
+}
+
+.horde-theme .defeat-announcement {
+  border-color: rgba(220, 20, 60, 0.3);
+}
+</style>

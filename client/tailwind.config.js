@@ -23,6 +23,20 @@ export default {
           'text-primary': '#f4f4f4',
           'text-secondary': '#b0b0b0',
           'text-muted': '#888888',
+        },
+        'alliance': {
+          'primary': '#4A90E2',
+          'secondary': '#87CEEB',
+          'bg': 'rgba(0, 100, 255, 0.1)',
+          'border': '#4A90E2',
+          'glow': 'rgba(74, 144, 226, 0.5)',
+        },
+        'horde': {
+          'primary': '#DC143C',
+          'secondary': '#FFB6C1',
+          'bg': 'rgba(200, 0, 0, 0.1)',
+          'border': '#DC143C',
+          'glow': 'rgba(220, 20, 60, 0.5)',
         }
       },
       backgroundImage: {
