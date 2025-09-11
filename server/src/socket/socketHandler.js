@@ -10,9 +10,9 @@ const socketHandler = (io, { gameController, roomController }) => {
     // Join room
     socket.on('join-room', async (data) => {
       try {
-        const { roomId, playerName, isGuest = true } = data;
+        const { roomId, playerName, isGuest = true, faction = 'horde' } = data;
         
-        console.log(`🔍 Join room request: roomId="${roomId}", playerName="${playerName}"`);
+        console.log(`🔍 Join room request: roomId="${roomId}", playerName="${playerName}", faction="${faction}"`);
         console.log(`🔍 Available rooms:`, Array.from(roomController.rooms.keys()));
         
         if (!roomId || !playerName) {
@@ -20,7 +20,7 @@ const socketHandler = (io, { gameController, roomController }) => {
           return;
         }
 
-        const result = roomController.joinRoom(roomId, playerName.trim(), socket.id, isGuest);
+        const result = roomController.joinRoom(roomId, playerName.trim(), socket.id, isGuest, faction);
         const room = roomController.getRoom(roomId);
         
         if (!room) {

@@ -45,9 +45,7 @@ const gameStore = useGameStore()
 
 const selectFaction = (faction) => {
   gameStore.setFaction(faction)
-  gameStore.playSound('click')
-  //TODO
-  // gameStore.playSound(faction) // Play faction-specific sound
+  gameStore.playSound(faction) // Play faction-specific sound
 }
 </script>
 

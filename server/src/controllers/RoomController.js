@@ -38,7 +38,7 @@ class RoomController {
     return true;
   }
 
-  joinRoom(roomId, playerName, socketId, isGuest = true) {
+  joinRoom(roomId, playerName, socketId, isGuest = true, faction = 'horde') {
     const room = this.rooms.get(roomId);
     if (!room) {
       throw new Error('Room not found');
@@ -65,6 +65,10 @@ class RoomController {
       // Update player with new socket ID and mark as connected
       existingPlayerByName.socketId = socketId;
       existingPlayerByName.isConnected = true;
+      // Update faction if provided
+      if (faction) {
+        existingPlayerByName.faction = faction;
+      }
       
       // Update mappings with new socket
       this.playerToRoom.set(existingPlayerByName.id, roomId);
@@ -81,9 +85,9 @@ class RoomController {
     const playerId = uuidv4();
     // Check if this player should be the host (same name as room host and first to join)
     const isPlayerHost = playerName.toLowerCase() === room.hostName.toLowerCase() && players.length === 0;
-    const player = new Player(playerId, playerName, socketId, isPlayerHost, isGuest);
+    const player = new Player(playerId, playerName, socketId, isPlayerHost, isGuest, faction);
     
-    console.log(`👤 Creating player: ${playerName}, isHost: ${isPlayerHost}, room host: ${room.hostName}, existing players: ${players.length}`);
+    console.log(`👤 Creating player: ${playerName}, isHost: ${isPlayerHost}, faction: ${faction}, room host: ${room.hostName}, existing players: ${players.length}`);
     
     // Add player to room
     room.addPlayer(player);

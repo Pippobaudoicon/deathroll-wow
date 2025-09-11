@@ -35,7 +35,13 @@ export const useGameStore = defineStore('game', () => {
     winSound: null,
     loseSound: null,
     chatSound: null,
-    initialized: false
+    initialized: false,
+    alliance: null,
+    horde: null,
+    allianceWin: null,
+    hordeWin: null,
+    allianceDead: null,
+    hordeDead: null,
   })
   
   // Persistence functions
@@ -232,7 +238,37 @@ export const useGameStore = defineStore('game', () => {
           sounds.value.synth.volume.value = -10 // Reset volume
         }, 50)
       })
-      
+
+      sounds.value.alliance = markRaw(() => {
+        const audio = new Audio('/sounds/alliance.mp3')
+        audio.play()
+      })
+
+      sounds.value.horde = markRaw(() => {
+        const audio = new Audio('/sounds/horde.mp3')
+        audio.play()
+      })
+
+      sounds.value.allianceDead = markRaw(() => {
+        const audio = new Audio('/sounds/alliance_defeat.mp3')
+        audio.play()
+      })
+
+      sounds.value.hordeDead = markRaw(() => {
+        const audio = new Audio('/sounds/horde_defeat.mp3')
+        audio.play()
+      })
+
+      sounds.value.allianceWin = markRaw(() => {
+        const audio = new Audio('/sounds/alliance_victory.mp3')
+        audio.play()
+      })
+
+      sounds.value.hordeWin = markRaw(() => {
+        const audio = new Audio('/sounds/horde_victory.mp3')
+        audio.play()
+      })
+
       console.log('🔊 Sound system initialized')
       sounds.value.initialized = true
       return true
@@ -395,7 +431,7 @@ export const useGameStore = defineStore('game', () => {
       // Play appropriate sound
       if (roll.isEliminating) {
         if (roll.playerId === currentPlayer.value?.id) {
-          playSound('loseSound')
+          playSound(selectedFaction.value +'Dead')
         } else {
           playSound('rollSound')
         }
@@ -414,12 +450,12 @@ export const useGameStore = defineStore('game', () => {
       if (data.room && data.room.players) {
         players.value = data.room.players
       }
-      
-      // Play win/lose sound
-      if (data.winner?.id === currentPlayer.value?.id) {
-        playSound('winSound')
-      } else {
-        playSound('loseSound')
+
+      // Play winner's faction victory sound for everyone
+      if (data.winner?.faction === 'horde') {
+        playSound('hordeWin')
+      } else if (data.winner?.faction === 'alliance') {
+        playSound('allianceWin')
       }
     })
     
@@ -488,13 +524,14 @@ export const useGameStore = defineStore('game', () => {
         })
       }
       
-      console.log('📡 Emitting join-room event:', { roomId, playerName, isGuest })
+      console.log('📡 Emitting join-room event:', { roomId, playerName, isGuest, faction: selectedFaction.value })
       
       // Emit join room event
       socket.value.emit('join-room', {
         roomId,
         playerName,
-        isGuest
+        isGuest,
+        faction: selectedFaction.value
       })
       
       // The 'player-joined' event handler in setupGameEventListeners will handle the response

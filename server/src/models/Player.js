@@ -1,10 +1,11 @@
 class Player {
-  constructor(id, name, socketId, isHost = false, isGuest = true) {
+  constructor(id, name, socketId, isHost = false, isGuest = true, faction = 'alliance') {
     this.id = id;
     this.name = name;
     this.socketId = socketId;
     this.isHost = isHost;
     this.isGuest = isGuest;
+    this.faction = faction;
     this.isEliminated = false;
     this.isConnected = true;
     this.joinedAt = new Date();
@@ -16,6 +17,7 @@ class Player {
       name: this.name,
       isHost: this.isHost,
       isGuest: this.isGuest,
+      faction: this.faction,
       isEliminated: this.isEliminated,
       isConnected: this.isConnected,
       joinedAt: this.joinedAt
