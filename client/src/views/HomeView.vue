@@ -34,6 +34,7 @@
                 type="text"
                 placeholder="Enter your name"
                 class="wow-input w-full"
+                data-player="host"
                 maxlength="20"
                 @keyup.enter="handleCreateRoom"
               />
@@ -60,6 +61,7 @@
                 type="text"
                 placeholder="Enter your name"
                 class="wow-input w-full"
+                data-player="join"
                 maxlength="20"
                 @keyup.enter="handleJoinRoom"
               />
@@ -122,19 +124,6 @@
             </li>
           </ul>
         </div>
-
-        <!-- Connection Status -->
-        <!-- <div class="text-center">
-          <div class="flex items-center justify-center space-x-2">
-            <div :class="[
-              'status-indicator',
-              connected ? 'connected' : 'disconnected'
-            ]"></div>
-            <span class="text-sm text-wow-text-muted">
-              {{ connected ? 'Connected to server' : 'Disconnected from server' }}
-            </span>
-          </div>
-        </div> -->
       </div>
     </div>
   </div>
@@ -156,26 +145,35 @@ const roomId = ref('')
 const autoReconnecting = ref(false)
 
 // Computed
-const { loading, error, connected } = gameStore
+const { loading, error } = gameStore
 
 onMounted(async () => {
   // Connect to server to show connection status
   gameStore.connect()
-  
+
+  // Check for ?room=roomId in URL
+  const urlParams = new URLSearchParams(window.location.search)
+  const roomParam = urlParams.get('room')
+  if (roomParam) {
+    // If room param exists, prefill roomId input
+    roomId.value = roomParam.toUpperCase()
+    await nextTick()
+    // Optionally focus the playerName input
+    const playerInput = document.querySelector('input[data-player="join"]')
+    if (playerInput) playerInput.focus()
+  }
+
   // Check for saved room state and attempt auto-reconnect
-  console.log('� Checking for saved room state...')
+  console.log('🔄 Checking for saved room state...')
   const savedState = gameStore.getSavedRoomState()
-  
+
   if (savedState) {
     console.log('🔄 Found saved room state, attempting auto-reconnect...')
-    
     autoReconnecting.value = true
-    
     // Show the user we're auto-reconnecting
     const shouldReconnect = confirm(
       `Resume your previous session?\n\nRoom: ${savedState.roomId}\nPlayer: ${savedState.playerName}\n\nClick OK to reconnect or Cancel to start fresh.`
     )
-    
     if (shouldReconnect) {
       // Navigate directly to the room - RoomView will handle the actual reconnection
       router.push(`/room/${savedState.roomId}?player=${encodeURIComponent(savedState.playerName)}`)
@@ -186,7 +184,7 @@ onMounted(async () => {
       autoReconnecting.value = false
     }
   }
-  
+
   // Only reset state if we don't have a current player and no auto-reconnect
   if (!gameStore.currentPlayer) {
     console.log('🔄 Fresh home visit, resetting state')
