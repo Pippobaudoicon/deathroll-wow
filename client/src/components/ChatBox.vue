@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-container">
+  <div class="wow-card h-96 flex flex-col">
     <div class="flex items-center justify-between mb-4">
       <h3 class="wow-subheading">💬 Chat</h3>
       <div class="text-xs text-wow-text-muted">
@@ -8,7 +8,7 @@
     </div>
 
     <!-- Chat Messages -->
-    <div ref="messagesContainer" class="chat-messages">
+    <div ref="messagesContainer" class="chat-messages flex-1 overflow-y-auto mb-4 space-y-2">
       <div
         v-for="message in gameStore.messages"
         :key="message.id"
@@ -72,12 +72,12 @@
     </div>
 
     <!-- Chat Input -->
-    <div class="flex space-x-2">
+    <div class="relative flex items-center gap-2 p-2 bg-wow-bg-medium border-2 border-wow-border rounded-lg shadow-wow-inset mt-auto">
       <input
         v-model="newMessage"
         type="text"
         placeholder="Type a message..."
-        class="wow-input flex-1"
+        class="flex-1 bg-transparent text-wow-text-primary placeholder-wow-text-muted focus:outline-none px-3 py-2.5 text-sm"
         maxlength="200"
         @keyup.enter="sendMessage"
         :disabled="!gameStore.connected"
@@ -85,9 +85,17 @@
       <button
         @click="sendMessage"
         :disabled="!newMessage.trim() || !gameStore.connected"
-        class="wow-button px-4"
+        class="flex-shrink-0 px-4 py-2 rounded-lg transition-all duration-200 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+        :class="newMessage.trim() && gameStore.connected 
+          ? gameStore.selectedFaction === 'alliance' 
+            ? 'bg-wow-blue text-white hover:bg-blue-600 shadow-md hover:shadow-lg' 
+            : 'bg-wow-red text-white hover:bg-red-700 shadow-md hover:shadow-lg'
+          : 'bg-wow-bg-tertiary text-wow-text-muted'"
       >
-        📤
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 2L11 13"></path>
+          <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+        </svg>
       </button>
     </div>
 
@@ -109,17 +117,35 @@ const gameStore = useGameStore()
 // Local state
 const newMessage = ref('')
 const messagesContainer = ref(null)
+const isUserScrolling = ref(false)
 
 // Note: Using gameStore directly in template to maintain reactivity
+
+// Check if user is scrolling away from bottom
+const handleScroll = () => {
+  if (!messagesContainer.value) return
+  
+  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value
+  const isAtBottom = scrollHeight - scrollTop - clientHeight < 50 // 50px threshold
+  
+  isUserScrolling.value = !isAtBottom
+}
 
 // Auto-scroll to bottom when new messages arrive
 watch(() => gameStore.messages, async () => {
   await nextTick()
-  scrollToBottom()
+  // Only auto-scroll if user hasn't manually scrolled up
+  if (!isUserScrolling.value) {
+    scrollToBottom()
+  }
 }, { deep: true })
 
 onMounted(() => {
   scrollToBottom()
+  // Add scroll event listener
+  if (messagesContainer.value) {
+    messagesContainer.value.addEventListener('scroll', handleScroll)
+  }
 })
 
 const sendMessage = () => {
@@ -127,6 +153,10 @@ const sendMessage = () => {
   
   gameStore.sendMessage(newMessage.value.trim())
   newMessage.value = ''
+  
+  // Scroll to bottom when user sends a message
+  isUserScrolling.value = false
+  nextTick(() => scrollToBottom())
 }
 
 const scrollToBottom = () => {
