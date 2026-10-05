@@ -27,7 +27,7 @@ In the Cloudflare dashboard, go to **Workers & Pages → Create → Import a rep
 
 ## Custom domain
 
-In the dashboard, go to **Workers & Pages → deathroll-wow → Settings → Domains & Routes → Add → Custom domain** (for example `deathroll.xyz`). The domain's zone has to be on Cloudflare.
+In the dashboard, go to **Workers & Pages → deathroll-wow → Settings → Domains & Routes → Add → Custom domain**. The domain's zone has to be on Cloudflare.
 
 ## Local development
 
