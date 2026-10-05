@@ -2,8 +2,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
-// Use environment variable or default to localhost for development
-const API_TARGET = process.env.VITE_API_URL || 'http://localhost:3040'
+// `npm run dev:worker` (wrangler dev) serves the API on 8787
+const API_TARGET = process.env.VITE_API_URL || 'http://localhost:8787'
 
 export default defineConfig({
   plugins: [vue()],
@@ -19,6 +19,7 @@ export default defineConfig({
       '/api': {
         target: API_TARGET,
         changeOrigin: true,
+        ws: true,
       },
     },
   },

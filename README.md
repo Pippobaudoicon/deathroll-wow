@@ -4,7 +4,7 @@ A complete, real-time, multiplayer web application that faithfully recreates the
 
 ## Features
 
-- **Real-time Multiplayer**: Up to 8 players per room using Socket.IO
+- **Real-time Multiplayer**: Up to 8 players per room over WebSockets
 - **Authentic WoW Experience**: Dark fantasy theme with WoW-inspired UI/UX
 - **Game Mechanics**: Faithful recreation of the Deathroll gameplay
 - **Live Chat**: Real-time chat with game event notifications
@@ -18,58 +18,38 @@ A complete, real-time, multiplayer web application that faithfully recreates the
 - Vue.js 3 with Composition API
 - Vite for build tooling
 - Tailwind CSS for styling
-- Socket.IO Client for real-time communication
 - Tone.js for sound effects
 - Pinia for state management
 
 **Backend:**
-- Node.js with Express.js
-- Socket.IO for real-time communication
-- In-memory game state management
+- Cloudflare Workers (API + static assets)
+- Durable Objects (one per room) with WebSockets for real-time state
 
 ## Installation and Setup
 
 ### Prerequisites
-- Node.js (version 16 or higher)
-- npm or yarn
+- Node.js (version 18 or higher)
 
 ### Installation
 
-1. Clone the repository:
 ```bash
 git clone https://github.com/Pippobaudoicon/deathroll-wow
 cd deathroll-wow
-```
-
-2. Install server dependencies:
-```bash
-cd server
-npm install
-```
-
-3. Install client dependencies:
-```bash
-cd ../client
 npm install
 ```
 
 ### Running the Application
 
-1. Start the server (from the `server` directory):
 ```bash
-cd server
-npm run dev
+npm run dev:worker   # API + Durable Objects on http://localhost:8787
+npm run dev:client   # Vite on http://localhost:5173 (proxies /api to the worker)
 ```
-The server will start on http://localhost:3040
 
-2. Start the client (from the `client` directory):
-```bash
-cd client
-npm run dev
-```
-The client will start on http://localhost:5173
+Then open http://localhost:5173.
 
-3. Open your browser and navigate to http://localhost:5173
+### Deploying
+
+`npm run deploy` builds the client and deploys everything to Cloudflare Workers. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Game Rules
 
@@ -93,25 +73,19 @@ deathroll-wow/
 │   │   └── utils/         # Utility functions
 │   ├── public/            # Public assets
 │   └── package.json
-├── server/                # Node.js backend
-│   ├── src/
-│   │   ├── controllers/   # Game logic
-│   │   ├── models/        # Data models
-│   │   ├── services/      # Business logic
-│   │   └── socket/        # Socket.IO handlers
-│   ├── server.js          # Main server file
-│   └── package.json
+├── worker/
+│   └── index.js           # Worker API + Room Durable Object (game logic)
+├── wrangler.jsonc         # Cloudflare config
 └── README.md
 ```
 
 ## Development
 
-### Server Development
-The server runs on port 3040 and provides:
-- RESTful API endpoints
-- Socket.IO real-time communication
-- Game state management
-- Room management
+### Worker Development
+`worker/index.js` provides:
+- REST endpoints for creating and looking up rooms
+- A WebSocket per room, handled by the `Room` Durable Object
+- Game and room state, persisted in Durable Object storage
 
 ### Client Development
 The client is built with Vue.js 3 and includes:

@@ -146,7 +146,6 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
-import { API_URL } from '@/config/env'
 import FactionSelector from '@/components/FactionSelector.vue'
 
 const router = useRouter()
@@ -218,7 +217,7 @@ const handleCreateRoom = async () => {
     console.log('🏠 Creating room with host:', hostName.value.trim())
     
     // Step 1: Create the room via API
-    const response = await fetch(`${API_URL}/api/rooms`, {
+    const response = await fetch('/api/rooms', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

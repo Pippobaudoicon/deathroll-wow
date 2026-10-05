@@ -1,0 +1,14 @@
+{
+  "name": "deathroll-wow",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "dev": "npm run build && wrangler dev",
+    "dev:worker": "wrangler dev",
+    "dev:client": "npm --prefix client run dev",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

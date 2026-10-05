@@ -194,3 +194,7 @@ package-lock.json
 *.tar
 *.tar.gz
 *.tar.bz2
+
+# Wrangler
+.wrangler/
+.dev.vars

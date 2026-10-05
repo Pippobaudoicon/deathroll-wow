@@ -1,194 +1,41 @@
-# 🎮 Deathroll WoW - Production Deployment Guide
+# Deploying to Cloudflare
 
-## Prerequisites
-- Node.js installed on your server
-- PM2 installed globally (`npm install -g pm2`)
-- Nginx configured and running
-- Domain name pointing to your server
-- SSL certificate (recommended)
+The whole app runs as one Cloudflare Worker:
 
-## Quick Deployment Steps
+- **Static assets**: the built Vue app (`client/dist`) is served by Workers Static Assets, with SPA fallback for `/room/:id`.
+- **API** (`worker/index.js`): `POST /api/rooms`, `GET /api/rooms/:id`, `GET /api/health`.
+- **Real-time**: each room is a Durable Object (`Room`), and players connect over a WebSocket at `/api/rooms/:id/ws`. Room state is saved to Durable Object storage. Rooms delete themselves once they're empty, and players who stay disconnected are removed after 5 minutes.
 
-### 1. Update Configuration Files
+Config is in `wrangler.jsonc`.
 
-**Update `ecosystem.config.js`:**
+## Deploy from your machine
+
 ```bash
-# Edit the ecosystem.config.js file
-nano ecosystem.config.js
-```
-- Change `/path/to/your/deathroll-wow` to your actual project path
-- Update `CORS_ORIGIN` with your actual domain
-
-**Update Client Configuration:**
-```bash
-# Edit the client environment config
-nano client/src/config/env.js
-```
-- Replace `https://your-domain.com` with your actual domain
-
-### 2. Build the Client
-```bash
-cd client
 npm install
-npm run build
-cd ..
+npx wrangler login
+npm run deploy
 ```
 
-### 3. Deploy with PM2
-```bash
-# Make deploy script executable
-chmod +x deploy.sh
+This builds the client and runs `wrangler deploy`. The app goes live at `https://deathroll-wow.<your-subdomain>.workers.dev`.
 
-# Run deployment
-./deploy.sh
-```
+## Deploy from Git (Workers Builds)
 
-### 4. Setup PM2 Auto-Startup
-```bash
-# Generate startup script
-pm2 startup
+In the Cloudflare dashboard, go to **Workers & Pages → Create → Import a repository** and pick this repo:
 
-# Follow the generated command (usually something like):
-# sudo env PATH=$PATH:/usr/bin /usr/local/lib/node_modules/pm2/bin/pm2 startup systemd -u youruser --hp /home/youruser
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
 
-# Save current PM2 processes
-pm2 save
-```
+## Custom domain
 
-### 5. Configure Nginx
+In the dashboard, go to **Workers & Pages → deathroll-wow → Settings → Domains & Routes → Add → Custom domain** (for example `deathroll.xyz`). The domain's zone has to be on Cloudflare.
 
-**Example Nginx configuration (`/etc/nginx/sites-available/deathroll-wow`):**
-```nginx
-server {
-    listen 80;
-    server_name deathroll.xyz;
-    return 301 https://$server_name$request_uri;
-}
+## Local development
 
-server {
-    listen 443 ssl http2;
-    server_name deathroll.xyz;
-
-    access_log /var/log/nginx/deathroll.access.log;
-    error_log /var/log/nginx/deathroll.error.log;
-
-    # SSL Configuration (managed by Certbot)
-    ssl_certificate /etc/letsencrypt/live/deathroll.xyz/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/deathroll.xyz/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    # Serve built client files directly from Nginx
-    root /path/to/your/deathroll-wow/client/dist;
-    index index.html;
-
-    # Handle client-side routing - serve index.html for all routes
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Proxy API requests to Node.js server
-    location /api/ {
-        proxy_pass http://localhost:3040;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    # Proxy Socket.IO connections
-    location /socket.io/ {
-        proxy_pass http://localhost:3040;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-**Enable the site:**
-```bash
-sudo ln -s /etc/nginx/sites-available/deathroll-wow /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-## Useful PM2 Commands
+Hot-reloading UI (two terminals):
 
 ```bash
-# Check status
-pm2 status
-
-# View logs
-pm2 logs deathroll-wow-server
-
-# Restart application
-pm2 restart deathroll-wow-server
-
-# Stop application
-pm2 stop deathroll-wow-server
-
-# Monitor processes
-pm2 monit
-
-# View process details
-pm2 describe deathroll-wow-server
+npm run dev:worker   # wrangler dev on :8787 (API + Durable Objects)
+npm run dev:client   # vite on :5173, proxies /api (incl. WebSockets) to :8787
 ```
 
-## Environment Variables
-
-The application supports these environment variables:
-
-- `NODE_ENV`: Set to `production` for production deployment
-- `PORT`: Server port (default: 3040 in production, 3005 in development)
-- `CORS_ORIGIN`: Allowed CORS origin (your domain)
-
-## Troubleshooting
-
-### Check if server is running:
-```bash
-curl http://localhost:3040/api/health
-```
-
-### Check Socket.IO connection:
-```bash
-# Should return Socket.IO response
-curl http://localhost:3040/socket.io/
-```
-
-### View server logs:
-```bash
-pm2 logs deathroll-wow-server --lines 100
-```
-
-### Restart if needed:
-```bash
-pm2 restart deathroll-wow-server
-```
-
-## Security Checklist
-
-- [ ] SSL certificate installed and configured
-- [ ] Firewall configured (only allow 80, 443, SSH)
-- [ ] PM2 running as non-root user
-- [ ] Nginx security headers configured
-- [ ] Server dependencies updated
-- [ ] CORS origins properly restricted
-
-## Monitoring
-
-Consider setting up monitoring:
-- PM2 Plus for process monitoring
-- Log rotation for application logs
-- Health check endpoints
-- Server resource monitoring
-
-Your Deathroll WoW application should now be running in production! 🚀
+Or run the production build locally on :8787: `npm run dev`.

@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, markRaw } from 'vue'
-import { io } from 'socket.io-client'
 import * as Tone from 'tone'
-import { API_URL, SOCKET_URL } from '@/config/env'
+import { createSocket } from '@/utils/socket'
 
 export const useGameStore = defineStore('game', () => {
   // State
@@ -278,31 +277,32 @@ export const useGameStore = defineStore('game', () => {
     }
   }
   
-  const connect = () => {
-    if (socket.value?.connected) {
-      console.log('🔌 Already connected to server')
+  // Each room is its own WebSocket endpoint, so the socket is tied to a roomId
+  const connect = (roomId) => {
+    if (socket.value?.roomId === roomId) {
+      if (!socket.value.connected) socket.value.connect()
       return
     }
     
-    if (socket.value && !socket.value.connected) {
-      console.log('🔌 Reconnecting existing socket...')
-      socket.value.connect()
-      return
-    }
+    if (socket.value) socket.value.disconnect()
     
     console.log('🔌 Creating new socket connection...')
-    socket.value = io(SOCKET_URL, {
-      autoConnect: false,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-    })
+    socket.value = markRaw(createSocket(roomId))
     
     // Socket event listeners
     socket.value.on('connect', () => {
       connected.value = true
       error.value = null
       console.log('✅ Connected to server')
+      // After an automatic reconnect, re-join so the server binds this socket to our player
+      if (currentPlayer.value && room.value?.id === roomId) {
+        socket.value.emit('join-room', {
+          roomId,
+          playerName: currentPlayer.value.name,
+          isGuest: currentPlayer.value.isGuest,
+          faction: selectedFaction.value
+        })
+      }
     })
     
     socket.value.on('disconnect', () => {
@@ -507,7 +507,7 @@ export const useGameStore = defineStore('game', () => {
     
     try {
       // Ensure we're connected
-      connect()
+      connect(roomId)
       
       // Wait for connection if needed
       if (!connected.value) {
@@ -584,7 +584,7 @@ export const useGameStore = defineStore('game', () => {
   
   const checkRoomExists = async (roomId) => {
     try {
-      const response = await fetch(`${API_URL}/api/rooms/${roomId}`)
+      const response = await fetch(`/api/rooms/${roomId}`)
       return response.ok
     } catch {
       return false
