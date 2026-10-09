@@ -1,275 +1,167 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/*
+ * Deathroll design system — classic WoW UI.
+ * Faction theme: <html data-faction="horde|alliance"> (set in App.vue) drives --faction / --faction-light.
+ * Use Tailwind tokens (text-gold, bg-faction/20, text-quality-epic, text-chan-system, font-display/ui/chat)
+ * plus the .wow-* primitives below. Component-specific styles live in each component's scoped <style>.
+ */
+
+/* Marcellus draws 1 and 0 like I and O; take digits from a lining-numeral serif instead */
+@font-face {
+  font-family: 'UI Digits';
+  src: local('Palatino'), local('Palatino Linotype'), local('Book Antiqua'), local('Noto Serif');
+  unicode-range: U+0030-0039;
+}
 
 @layer base {
-  * {
-    box-sizing: border-box;
+  :root {
+    --faction: 179 27 27;        /* Horde red */
+    --faction-light: 255 92 72;
+    --gold-border: linear-gradient(180deg, #f6dc8a 0%, #b08a32 30%, #6a4f17 50%, #c9a24a 75%, #4a370f 100%);
+    --cursor: url('/cursors/gauntlet.svg') 3 2, auto;
+    --cursor-point: url('/cursors/gauntlet-point.svg') 3 2, pointer;
+  }
+  [data-faction='alliance'] {
+    --faction: 32 82 176;        /* Alliance blue */
+    --faction-light: 110 168 255;
   }
 
-  html {
-    scroll-behavior: smooth;
-  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
 
   body {
-    @apply font-wow bg-wow-bg-dark text-wow-text-primary;
+    @apply font-ui text-white bg-ink-950;
     margin: 0;
-    padding: 0;
     min-height: 100vh;
-    background-image: 
-      radial-gradient(circle at 20% 50%, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(0, 132, 255, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 40% 80%, rgba(204, 41, 54, 0.1) 0%, transparent 50%);
+    cursor: var(--cursor);
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgb(var(--faction) / 0.28) 0%, transparent 70%),
+      radial-gradient(ellipse 120% 80% at 50% 120%, rgb(var(--faction) / 0.18) 0%, transparent 60%),
+      radial-gradient(circle at 50% 50%, #12141c 0%, #040508 100%);
     background-attachment: fixed;
+    transition: background-color 0.6s ease;
   }
+  a, button:not(:disabled), [role='button'], label, select { cursor: var(--cursor-point); }
 
-  #app {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+  #app { min-height: 100vh; display: flex; flex-direction: column; }
+
+  ::selection { background: rgb(255 209 0 / 0.35); }
 }
 
 @layer components {
-  .wow-button {
-    @apply px-6 py-3 bg-wow-button border-2 border-wow-border rounded-lg text-wow-text-primary font-semibold;
-    @apply shadow-wow-outset transition-all duration-200;
-    @apply hover:bg-wow-button-hover hover:shadow-wow-glow hover:border-wow-gold;
-    @apply active:shadow-wow-inset active:transform active:translate-y-1;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+  /* Gold-trimmed dark frame (character panel / dialog look). Add .wow-frame-title child for a header plaque. */
+  .wow-frame {
+    @apply relative rounded-md p-5;
+    border: 3px solid transparent;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgb(var(--faction) / 0.12), transparent 70%) padding-box,
+      linear-gradient(180deg, #151822 0%, #0a0b10 100%) padding-box,
+      var(--gold-border) border-box;
+    box-shadow: 0 0 0 1px #000, 0 10px 30px rgb(0 0 0 / 0.75), inset 0 0 40px rgb(0 0 0 / 0.85);
+  }
+  .wow-frame::before, .wow-frame::after {
+    content: '';
+    @apply absolute w-2.5 h-2.5 rotate-45 pointer-events-none;
+    top: -7px;
+    background: linear-gradient(135deg, #fff1a8, #a8801c 60%, #5a4314);
+    box-shadow: 0 0 0 1px #000;
+  }
+  .wow-frame::before { left: -7px; }
+  .wow-frame::after { right: -7px; }
+
+  .wow-frame-title {
+    @apply absolute left-1/2 -translate-x-1/2 -top-4 whitespace-nowrap px-5 py-1 rounded-sm;
+    @apply font-display font-bold text-sm uppercase tracking-[0.18em] text-gold;
+    border: 2px solid transparent;
+    background: linear-gradient(180deg, #2a1d10, #120c06) padding-box, var(--gold-border) border-box;
+    text-shadow: 1px 1px 0 #000;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.8);
   }
 
-  .wow-button:disabled {
-    @apply opacity-50 cursor-not-allowed;
-    @apply hover:bg-wow-button hover:shadow-wow-outset hover:border-wow-border hover:transform-none;
+  /* Classic tooltip: navy-black, silver rounded border */
+  .wow-tooltip {
+    @apply rounded-md px-3 py-2 text-sm;
+    background: rgb(4 6 22 / 0.94);
+    border: 2px solid #8a8f9c;
+    box-shadow: inset 0 0 0 1px #000, 0 4px 14px rgb(0 0 0 / 0.7);
   }
 
-  .wow-button-primary {
-    @apply wow-button bg-wow-gold-dark text-white border-yellow-700;
-    @apply hover:bg-wow-gold hover:border-yellow-600;
-    color: #ffffff !important; /* Force white text for maximum contrast */
-    font-weight: 600;
+  /* Quest-log parchment */
+  .wow-parchment {
+    @apply rounded-sm p-5 text-parchment-ink;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgb(255 255 255 / 0.25), transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgb(120 80 30 / 0.25), transparent 55%),
+      linear-gradient(180deg, #efdfb4 0%, #e2c993 100%);
+    border: 2px solid #6b4d22;
+    box-shadow: inset 0 0 30px rgb(110 70 20 / 0.45), 0 6px 18px rgb(0 0 0 / 0.7);
   }
 
-  .wow-button-danger {
-    @apply wow-button bg-wow-red border-red-600;
-    @apply hover:bg-red-600 hover:border-red-500;
+  /* Classic red UIPanelButton with gold text */
+  .wow-btn {
+    @apply relative inline-flex items-center justify-center gap-2 px-6 py-2 rounded-[4px] select-none;
+    @apply font-ui text-base text-gold transition-[filter,transform] duration-100;
+    border: 1px solid #000;
+    background: linear-gradient(180deg, #c52a1a 0%, #8f1209 48%, #6a0b05 52%, #3d0503 100%);
+    box-shadow: inset 0 0 0 1px #d9a93c, inset 0 2px 0 rgb(255 200 140 / 0.35), 0 2px 0 #000, 0 3px 6px rgb(0 0 0 / 0.6);
+    text-shadow: 1px 1px 0 #000;
   }
-
-  .wow-panel {
-    @apply bg-wow-stone border-2 border-wow-border rounded-lg shadow-wow-outset;
-    @apply backdrop-blur-sm;
+  .wow-btn:hover:not(:disabled) { @apply text-white; filter: brightness(1.2) drop-shadow(0 0 6px rgb(255 209 0 / 0.45)); }
+  .wow-btn:active:not(:disabled) { transform: translateY(1px); filter: brightness(0.85); }
+  .wow-btn:disabled {
+    @apply cursor-not-allowed text-[#808080];
+    background: linear-gradient(180deg, #4a4a4a 0%, #2b2b2b 50%, #1a1a1a 100%);
+    box-shadow: inset 0 0 0 1px #6b6b6b, 0 2px 0 #000;
   }
+  /* Secondary: dark steel with gold text */
+  .wow-btn-steel {
+    @apply wow-btn;
+    background: linear-gradient(180deg, #4b4f5a 0%, #2a2d35 50%, #15171c 100%);
+    box-shadow: inset 0 0 0 1px #8d7a45, inset 0 2px 0 rgb(255 255 255 / 0.12), 0 2px 0 #000, 0 3px 6px rgb(0 0 0 / 0.6);
+  }
+  .wow-btn-lg { @apply px-10 py-3 text-xl; }
 
+  /* Edit box */
   .wow-input {
-    @apply px-4 py-3 bg-wow-bg-medium border-2 border-wow-border rounded-lg;
-    @apply text-wow-text-primary placeholder-wow-text-muted;
-    @apply shadow-wow-inset focus:border-wow-gold focus:outline-none;
-    @apply transition-colors duration-200;
+    @apply w-full rounded-[3px] px-3 py-2 font-ui text-white placeholder-[#7c7c7c] outline-none transition-colors;
+    background: rgb(0 0 0 / 0.65);
+    border: 1px solid #5f5f5f;
+    box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.9);
+  }
+  .wow-input:focus { border-color: #ffd100; box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.9), 0 0 6px rgb(255 209 0 / 0.35); }
+
+  /* Gold display title with black outline */
+  .wow-title {
+    @apply font-display font-bold text-gold tracking-wide;
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 2px 2px 0 #000, 0 0 18px rgb(255 170 0 / 0.35);
+  }
+  .wow-label { @apply font-ui text-gold text-sm; text-shadow: 1px 1px 0 #000; }
+
+  /* Ornamental divider: line + center diamond */
+  .wow-divider {
+    @apply relative h-px my-4 border-0 overflow-visible;
+    background: linear-gradient(90deg, transparent, #a8801c 20%, #ffd100 50%, #a8801c 80%, transparent);
+  }
+  .wow-divider::after {
+    content: '';
+    @apply absolute left-1/2 top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rotate-45;
+    background: #ffd100;
+    box-shadow: 0 0 0 1px #000, 0 0 6px rgb(255 209 0 / 0.6);
   }
 
-  .wow-card {
-    @apply wow-panel p-6;
+  /* Square icon slot (action bar / portrait) */
+  .wow-slot {
+    @apply relative overflow-hidden rounded-[3px] flex items-center justify-center bg-black;
+    border: 2px solid #3a3a3a;
+    box-shadow: inset 0 0 0 1px #000, inset 0 0 10px rgb(0 0 0 / 0.9), 0 0 0 1px #6e6e6e;
   }
 
-  .wow-text-shadow {
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-  }
-
-  .wow-heading {
-    @apply text-3xl font-bold text-wow-gold wow-text-shadow;
-  }
-
-  .wow-subheading {
-    @apply text-xl font-semibold text-wow-text-primary wow-text-shadow;
-  }
-
-  .dice-container {
-    @apply relative w-24 h-24 mx-auto mb-4;
-    perspective: 1000px;
-  }
-
-  .dice {
-    @apply w-full h-full bg-wow-stone border-2 border-wow-gold rounded-xl;
-    @apply flex items-center justify-center text-3xl font-bold text-wow-gold;
-    @apply shadow-wow-outset;
-    transform-style: preserve-3d;
-    transition: transform 0.6s;
-  }
-
-  .dice.rolling {
-    animation: diceRoll 1s ease-in-out;
-  }
-
-  .player-card {
-    @apply wow-panel p-4 mb-2 transition-all duration-300;
-  }
-
-  .player-card.current-turn {
-    @apply border-wow-gold shadow-wow-glow;
-    animation: pulse-gold 2s infinite;
-  }
-
-  .player-card.eliminated {
-    @apply opacity-50 grayscale;
-  }
-
-  .player-card.host {
-    @apply border-wow-blue;
-  }
-
-  .chat-container {
-    @apply wow-panel p-4 h-96 flex flex-col;
-  }
-
-  .chat-messages {
-    @apply flex-1 overflow-y-auto mb-4 space-y-2;
-    scrollbar-width: thin;
-    scrollbar-color: #ffd700 #2a2a2a;
-  }
-
-  .chat-messages::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .chat-messages::-webkit-scrollbar-track {
-    @apply bg-wow-bg-medium rounded;
-  }
-
-  .chat-messages::-webkit-scrollbar-thumb {
-    @apply bg-wow-gold rounded;
-  }
-
-  .chat-message {
-    @apply p-2 rounded bg-wow-bg-medium;
-  }
-
-  .chat-message.system {
-    @apply bg-wow-blue bg-opacity-20 text-wow-blue;
-  }
-
-  .chat-message.game {
-    @apply bg-wow-gold-dark bg-opacity-30 text-wow-gold border border-wow-gold-dark;
-    color: #ffffff !important; /* Force white text for game messages */
-  }
-
-  .roll-history {
-    @apply wow-panel p-4 max-h-96 overflow-y-auto;
-  }
-
-  .roll-item {
-    @apply flex justify-between items-center p-2 mb-1 bg-wow-bg-medium rounded;
-  }
-
-  .roll-item.eliminating {
-    @apply bg-wow-red bg-opacity-20 text-wow-red;
-  }
-
-  .modal-overlay {
-    @apply fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50;
-    backdrop-filter: blur(5px);
-  }
-
-  .modal-content {
-    @apply wow-panel p-8 max-w-md w-full mx-4;
-    animation: modalSlide 0.3s ease-out;
-  }
-
-  @keyframes modalSlide {
-    from {
-      opacity: 0;
-      transform: translateY(-50px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .status-indicator {
-    @apply inline-block w-3 h-3 rounded-full mr-2;
-  }
-
-  .status-indicator.connected {
-    @apply bg-green-500;
-  }
-
-  .status-indicator.disconnected {
-    @apply bg-red-500;
-  }
-
-  .game-status {
-    @apply text-center py-4;
-  }
-
-  .game-status.lobby {
-    @apply text-wow-blue;
-  }
-
-  .game-status.playing {
-    @apply text-wow-gold;
-  }
-
-  .game-status.finished {
-    @apply text-wow-red;
-  }
-
-  .winner-announcement {
-    @apply text-center py-8;
-    animation: winnerGlow 2s infinite;
-  }
-
-  .defeat-announcement {
-    @apply text-center py-8;
-    animation: defeatPulse 2s infinite;
-  }
-
-  .loading-spinner {
-    @apply animate-spin rounded-full h-8 w-8 border-b-2 border-wow-gold;
-  }
-
-  .fade-enter-active,
-  .fade-leave-active {
-    transition: opacity 0.3s ease;
-  }
-
-  .fade-enter-from,
-  .fade-leave-to {
-    opacity: 0;
-  }
-
-  .slide-up-enter-active,
-  .slide-up-leave-active {
-    transition: all 0.3s ease;
-  }
-
-  .slide-up-enter-from {
-    transform: translateY(50px);
-    opacity: 0;
-  }
-
-  .slide-up-leave-to {
-    transform: translateY(-50px);
-    opacity: 0;
-  }
-
-  @keyframes winnerGlow {
-    0%, 100% {
-      box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
-    }
-    50% {
-      box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
-    }
-  }
-
-  @keyframes defeatPulse {
-    0%, 100% {
-      box-shadow: 0 0 20px rgba(204, 41, 54, 0.3);
-    }
-    50% {
-      box-shadow: 0 0 40px rgba(204, 41, 54, 0.6);
-    }
-  }
+  /* Gold scrollbar for scroll areas */
+  .wow-scroll { scrollbar-width: thin; scrollbar-color: #a8801c #0a0b10; }
+  .wow-scroll::-webkit-scrollbar { width: 8px; }
+  .wow-scroll::-webkit-scrollbar-track { background: #0a0b10; }
+  .wow-scroll::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #ffd100, #a8801c); border-radius: 4px; border: 1px solid #000; }
 }

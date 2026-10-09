@@ -1,144 +1,129 @@
 <template>
-  <div 
-    class="min-h-screen flex items-center justify-center p-4 transition-all duration-500"
-    :class="[
-      'faction-theme',
-      gameStore.selectedFaction === 'alliance' ? 'alliance-theme' : 'horde-theme'
-    ]"
-  >
-    <div class="max-w-2xl w-full relative">
-      <!-- Header -->
-      <div class="text-center mb-8">
-        <h1 class="wow-heading text-6xl mb-4">
-          🎲 DEATHROLL 🎲
-        </h1>
-        <p class="text-xl text-wow-text-secondary wow-text-shadow">
-          World of Warcraft's Most Thrilling Dice Game
+  <div class="relative flex-1 flex flex-col items-center px-4 pt-10 pb-14 sm:pt-14">
+    <!-- Logo -->
+    <header class="text-center mb-8 sm:mb-10">
+      <h1 class="logo font-display font-black uppercase leading-none">Deathroll</h1>
+      <div class="mt-3 flex items-center justify-center gap-3">
+        <span class="h-px w-10 sm:w-16 bg-gradient-to-r from-transparent to-gold-dark"></span>
+        <p class="font-display text-xs sm:text-sm uppercase tracking-[0.35em] text-gold-light/80" style="text-shadow: 1px 1px 0 #000">
+          A World of Warcraft Dice Game
         </p>
-        <p class="text-wow-text-muted mt-2">
-          Roll the dice, tempt fate, be the last one standing!
-        </p>
-        
-        <!-- Auto-reconnect indicator -->
-        <div v-if="autoReconnecting" class="mt-4 p-4 bg-wow-blue bg-opacity-20 border border-wow-blue rounded">
-          <div class="flex items-center justify-center space-x-2">
-            <div class="loading-spinner"></div>
-            <span class="text-wow-blue">Checking for previous session...</span>
-          </div>
-        </div>
+        <span class="h-px w-10 sm:w-16 bg-gradient-to-l from-transparent to-gold-dark"></span>
       </div>
+    </header>
 
-            <!-- Faction Selector - Top Right Corner -->
-      <div class="flex justify-center mb-8">
-        <FactionSelector />
+    <!-- Faction choice -->
+    <section class="mb-10 text-center">
+      <p class="wow-label mb-4 uppercase tracking-[0.2em]">Choose your Allegiance</p>
+      <FactionSelector />
+    </section>
+
+    <!-- Login box -->
+    <section class="wow-frame w-full max-w-sm mt-2 pt-8">
+      <h2 class="wow-frame-title">Enter World</h2>
+
+      <label for="char-name" class="wow-label block mb-1">Character Name</label>
+      <input
+        id="char-name"
+        ref="nameInput"
+        v-model="name"
+        type="text"
+        class="wow-input"
+        maxlength="20"
+        autocomplete="off"
+        @keyup.enter="roomCode.trim() ? handleJoinRoom() : handleCreateRoom()"
+      />
+
+      <button
+        type="button"
+        class="wow-btn w-full mt-4"
+        :disabled="!name.trim() || creating"
+        @click="handleCreateRoom"
+      >
+        {{ creating ? 'Creating...' : 'Create Room' }}
+      </button>
+
+      <hr class="wow-divider my-6" />
+
+      <label for="room-code" class="wow-label block mb-1">Room Code</label>
+      <input
+        id="room-code"
+        v-model="roomCode"
+        type="text"
+        class="wow-input uppercase tracking-[0.3em]"
+        maxlength="6"
+        autocomplete="off"
+        @input="roomCode = roomCode.toUpperCase()"
+        @keyup.enter="handleJoinRoom"
+      />
+
+      <button
+        type="button"
+        class="wow-btn w-full mt-4"
+        :disabled="!name.trim() || !roomCode.trim()"
+        @click="handleJoinRoom"
+      >
+        Join Room
+      </button>
+    </section>
+
+    <!-- UI error text -->
+    <p
+      v-if="gameStore.error"
+      class="mt-4 max-w-sm text-center font-ui text-chan-error"
+      style="text-shadow: 1px 1px 0 #000"
+      role="alert"
+    >
+      {{ gameStore.error }}
+    </p>
+
+    <!-- Rules as a quest log entry -->
+    <article class="wow-parchment quest w-full max-w-xl mt-12">
+      <h3 class="font-display font-bold text-xl sm:text-2xl">
+        Deathroll <span class="text-base font-ui opacity-70">[60]</span>
+      </h3>
+
+      <h4 class="quest-heading">Objectives</h4>
+      <ol class="space-y-1 pl-1">
+        <li>1. The first player rolls 1-1000 (or any starting number).</li>
+        <li>2. Each following player rolls 1 to the previous roll result.</li>
+        <li>3. Rolling a 1 eliminates you from the game.</li>
+        <li>4. Be the last player standing.</li>
+      </ol>
+
+      <h4 class="quest-heading">Description</h4>
+      <p class="italic">
+        Gold changes hands in every tavern from Booty Bay to Orgrimmar, but none so quickly as at the
+        deathroll table. Gather your companions, name your stakes, and let fate decide who walks away
+        rich and who walks away a fool.
+      </p>
+
+      <h4 class="quest-heading">Rewards</h4>
+      <div class="flex items-center gap-3">
+        <span class="wow-slot w-10 h-10 shrink-0">
+          <svg viewBox="0 0 24 24" class="w-7 h-7" aria-hidden="true">
+            <path d="M3 18 L4.5 8 L9 12 L12 5 L15 12 L19.5 8 L21 18 Z" fill="#ffd100" stroke="#5a4314" stroke-width="1" stroke-linejoin="round" />
+            <rect x="3" y="18.5" width="18" height="2.5" rx="0.5" fill="#a8801c" stroke="#5a4314" stroke-width="0.8" />
+          </svg>
+        </span>
+        <span>
+          You will receive:
+          <span class="text-quality-epic font-bold">[Glory of the Last Roll]</span>
+        </span>
       </div>
-      <!-- Main Menu -->
-      <div class="wow-card space-y-6">
-        <div class="grid md:grid-cols-2 gap-6">
-          <!-- Create Room -->
-          <div class="space-y-4">
-            <h2 class="wow-subheading text-center">Create New Room</h2>
-            <div class="space-y-3">
-              <input
-                v-model="hostName"
-                type="text"
-                placeholder="Enter your name"
-                class="wow-input w-full"
-                data-player="host"
-                maxlength="20"
-                @keyup.enter="handleCreateRoom"
-              />
-              <button
-                @click="handleCreateRoom"
-                :disabled="!hostName.trim() || loading"
-                class="wow-button-primary w-full"
-              >
-                <span v-if="loading" class="flex items-center justify-center">
-                  <div class="loading-spinner mr-2"></div>
-                  Creating...
-                </span>
-                <span v-else>🏠 Create Room</span>
-              </button>
-            </div>
-          </div>
+    </article>
 
-          <!-- Join Room -->
-          <div class="space-y-4">
-            <h2 class="wow-subheading text-center">Join Existing Room</h2>
-            <div class="space-y-3">
-              <input
-                v-model="playerName"
-                type="text"
-                placeholder="Enter your name"
-                class="wow-input w-full"
-                data-player="join"
-                maxlength="20"
-                @keyup.enter="handleJoinRoom"
-              />
-              <input
-                v-model="roomId"
-                type="text"
-                placeholder="Room ID (e.g. ABC123)"
-                class="wow-input w-full"
-                maxlength="6"
-                @input="roomId = roomId.toUpperCase()"
-                @keyup.enter="handleJoinRoom"
-              />
-              <button
-                @click="handleJoinRoom"
-                :disabled="!playerName.trim() || !roomId.trim() || loading"
-                class="wow-button w-full"
-              >
-                <span v-if="loading" class="flex items-center justify-center">
-                  <div class="loading-spinner mr-2"></div>
-                  Joining...
-                </span>
-                <span v-else>🚪 Join Room</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- Login-screen corner text -->
+    <p class="absolute bottom-2 left-3 font-chat text-[11px] text-[#8a8a8a]">Version 1.12.1 (Deathroll)</p>
 
-      <!-- Game Info Container -->
-      <div class="space-y-6 mt-6">
-        <!-- Error Display -->
-        <div v-if="error" class="wow-panel p-4 bg-wow-red bg-opacity-20 border-wow-red">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <span class="text-2xl mr-2">⚠️</span>
-              <span class="text-wow-red font-semibold">{{ error }}</span>
-            </div>
-            <button @click="clearError" class="text-wow-red hover:text-red-400">
-              ✕
-            </button>
-          </div>
-        </div>
-
-        <!-- Game Rules -->
-        <div class="wow-panel p-6 bg-wow-bg-medium bg-opacity-50">
-          <h3 class="text-lg font-semibold text-wow-gold mb-3">📜 Game Rules</h3>
-          <ul class="space-y-2 text-wow-text-secondary">
-            <li class="flex items-start">
-              <span class="text-wow-gold mr-2">1.</span>
-              The first player rolls 1-1000 (or any starting number)
-            </li>
-            <li class="flex items-start">
-              <span class="text-wow-gold mr-2">2.</span>
-              Each following player rolls 1 to the previous roll result
-            </li>
-            <li class="flex items-start">
-              <span class="text-wow-gold mr-2">3.</span>
-              Rolling a 1 eliminates you from the game
-            </li>
-            <li class="flex items-start">
-              <span class="text-wow-gold mr-2">4.</span>
-              Last player standing wins!
-            </li>
-          </ul>
-        </div>
-      </div> <!-- Close Game Info Container -->
-    </div>
+    <StaticPopup v-if="savedSession" @accept="acceptResume" @decline="declineResume">
+      Resume your previous session?
+      <span class="block mt-2 text-sm">
+        Room: <span class="text-gold">{{ savedSession.roomId }}</span>
+        <span class="mx-2"></span>
+        Character: <span class="text-gold">{{ savedSession.playerName }}</span>
+      </span>
+    </StaticPopup>
   </div>
 </template>
 
@@ -147,186 +132,100 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 import FactionSelector from '@/components/FactionSelector.vue'
+import StaticPopup from '@/components/StaticPopup.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
 
-// Reactive data
-const hostName = ref('')
-const playerName = ref('')
-const roomId = ref('')
-const autoReconnecting = ref(false)
-
-// Computed
-const { loading, error } = gameStore
+const name = ref('')
+const roomCode = ref('')
+const creating = ref(false)
+const savedSession = ref(null)
+const nameInput = ref(null)
 
 onMounted(async () => {
-  // Connect to server to show connection status
-  gameStore.connect()
+  // Only reset state if we don't have a current player
+  if (!gameStore.currentPlayer) gameStore.resetState()
 
-  // Check for ?room=roomId in URL
-  const urlParams = new URLSearchParams(window.location.search)
-  const roomParam = urlParams.get('room')
+  // ?room=XYZ prefills the code and focuses the name field
+  const roomParam = new URLSearchParams(window.location.search).get('room')
   if (roomParam) {
-    // If room param exists, prefill roomId input
-    roomId.value = roomParam.toUpperCase()
+    roomCode.value = roomParam.toUpperCase()
     await nextTick()
-    // Optionally focus the playerName input
-    const playerInput = document.querySelector('input[data-player="join"]')
-    if (playerInput) playerInput.focus()
+    nameInput.value?.focus()
   }
 
-  // Check for saved room state and attempt auto-reconnect
-  console.log('🔄 Checking for saved room state...')
-  const savedState = gameStore.getSavedRoomState()
-
-  if (savedState) {
-    console.log('🔄 Found saved room state, attempting auto-reconnect...')
-    autoReconnecting.value = true
-    // Show the user we're auto-reconnecting
-    const shouldReconnect = confirm(
-      `Resume your previous session?\n\nRoom: ${savedState.roomId}\nPlayer: ${savedState.playerName}\n\nClick OK to reconnect or Cancel to start fresh.`
-    )
-    if (shouldReconnect) {
-      // Navigate directly to the room - RoomView will handle the actual reconnection
-      router.push(`/room/${savedState.roomId}?player=${encodeURIComponent(savedState.playerName)}`)
-      return
-    } else {
-      // User chose not to reconnect, clear saved state
-      gameStore.clearSavedRoomState()
-      autoReconnecting.value = false
-    }
-  }
-
-  // Only reset state if we don't have a current player and no auto-reconnect
-  if (!gameStore.currentPlayer) {
-    console.log('🔄 Fresh home visit, resetting state')
-    gameStore.resetState()
-  } else {
-    console.log('🔄 Returning to home with existing player, keeping state')
-  }
+  savedSession.value = gameStore.getSavedRoomState()
 })
 
+// RoomView handles the actual reconnection
+const acceptResume = () => {
+  const s = savedSession.value
+  router.push(`/room/${s.roomId}?player=${encodeURIComponent(s.playerName)}`)
+}
+
+const declineResume = () => {
+  gameStore.clearSavedRoomState()
+  savedSession.value = null
+}
+
 const handleCreateRoom = async () => {
-  if (!hostName.value.trim()) return
-  
-  // Fire-and-forget sound play
-  gameStore.playSound('clickSound').catch(() => {}) // Silently handle any sound errors
-  
+  const hostName = name.value.trim()
+  if (!hostName || creating.value) return
+
+  gameStore.playSound('clickSound')
+  gameStore.clearError()
+  creating.value = true
+
   try {
-    console.log('🏠 Creating room with host:', hostName.value.trim())
-    
-    // Step 1: Create the room via API
     const response = await fetch('/api/rooms', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ hostName: hostName.value.trim(), isGuest: true }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hostName, isGuest: true }),
     })
-    
-    if (!response.ok) {
-      throw new Error('Failed to create room')
-    }
+    if (!response.ok) throw new Error('Failed to create room')
 
     const roomData = await response.json()
-    console.log('✅ Room created via API:', roomData.id)
-    
-    // Step 2: Navigate immediately with room ID in URL
-    // The RoomView will handle joining the room
-    router.push(`/room/${roomData.id}?host=${encodeURIComponent(hostName.value.trim())}`)
-    
+    // RoomView handles joining the room
+    router.push(`/room/${roomData.id}?host=${encodeURIComponent(hostName)}`)
   } catch (err) {
-    console.error('❌ Failed to create room:', err)
+    console.error('Failed to create room:', err)
     gameStore.error = err.message
+  } finally {
+    creating.value = false
   }
 }
 
-const handleJoinRoom = async () => {
-  if (!playerName.value.trim() || !roomId.value.trim()) return
-  
-  // Fire-and-forget sound play
-  gameStore.playSound('clickSound').catch(() => {}) // Silently handle any sound errors
-  
-  try {
-    console.log('🚪 Joining room:', roomId.value.trim(), 'as:', playerName.value.trim())
-    router.push(`/room/${roomId.value.trim()}?player=${encodeURIComponent(playerName.value.trim())}`)
-  } catch (err) {
-    console.error('❌ Failed to join room:', err)
-  }
-}
+const handleJoinRoom = () => {
+  const playerName = name.value.trim()
+  const code = roomCode.value.trim()
+  if (!playerName || !code) return
 
-const clearError = () => {
+  gameStore.playSound('clickSound')
   gameStore.clearError()
+  router.push(`/room/${code}?player=${encodeURIComponent(playerName)}`)
 }
 </script>
 
 <style scoped>
-/* Faction Theme Styles */
-.faction-theme {
-  transition: all 0.5s ease-in-out;
+/* Beveled gold logo: gradient fill, dark outline, warm glow */
+.logo {
+  font-size: clamp(2.6rem, 13vw, 6rem);
+  letter-spacing: 0.06em;
+  background: linear-gradient(180deg, #fff6c8 0%, #ffd100 38%, #c58f12 55%, #ffe680 72%, #8a6210 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 1px #3a2606;
+  filter:
+    drop-shadow(0 2px 0 #000)
+    drop-shadow(0 0 1px #000)
+    drop-shadow(0 0 22px rgb(255 170 0 / 0.4));
 }
 
-.alliance-theme {
-  background: linear-gradient(135deg, rgba(74, 144, 226, 0.05) 0%, rgba(0, 0, 0, 0.9) 100%);
-}
-
-.horde-theme {
-  background: linear-gradient(135deg, rgba(220, 20, 60, 0.05) 0%, rgba(0, 0, 0, 0.9) 100%);
-}
-
-/* Alliance themed cards */
-.alliance-theme .wow-card {
-  border-color: rgba(74, 144, 226, 0.3);
-  background: linear-gradient(145deg, rgba(74, 144, 226, 0.05) 0%, rgba(26, 26, 26, 0.95) 100%);
-}
-
-.alliance-theme .wow-card:hover {
-  border-color: rgba(74, 144, 226, 0.5);
-  box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
-}
-
-.alliance-theme .wow-heading {
-  color: #87CEEB;
-  text-shadow: 0 0 15px rgba(74, 144, 226, 0.6);
-}
-
-/* Horde themed cards */
-.horde-theme .wow-card {
-  border-color: rgba(220, 20, 60, 0.3);
-  background: linear-gradient(145deg, rgba(220, 20, 60, 0.05) 0%, rgba(26, 26, 26, 0.95) 100%);
-}
-
-.horde-theme .wow-card:hover {
-  border-color: rgba(220, 20, 60, 0.5);
-  box-shadow: 0 0 20px rgba(220, 20, 60, 0.2);
-}
-
-.horde-theme .wow-heading {
-  color: #FFB6C1;
-  text-shadow: 0 0 15px rgba(220, 20, 60, 0.6);
-}
-
-/* Button theming */
-.alliance-theme .wow-button-primary {
-  background: linear-gradient(145deg, #4A90E2 0%, #2c5aa0 100%);
-  border-color: #4A90E2;
-  color: #87CEEB;
-}
-
-.alliance-theme .wow-button-primary:hover {
-  background: linear-gradient(145deg, #5ba0f2 0%, #3c6ab0 100%);
-  box-shadow: 0 0 15px rgba(74, 144, 226, 0.5);
-}
-
-.horde-theme .wow-button-primary {
-  background: linear-gradient(145deg, #DC143C 0%, #a0102c 100%);
-  border-color: #DC143C;
-  color: #FFB6C1;
-}
-
-.horde-theme .wow-button-primary:hover {
-  background: linear-gradient(145deg, #ec244c 0%, #b0203c 100%);
-  box-shadow: 0 0 15px rgba(220, 20, 60, 0.5);
+.quest { line-height: 1.6; }
+.quest-heading {
+  @apply font-display font-bold text-lg mt-5 mb-1;
+  color: #4a2a0a;
 }
 </style>

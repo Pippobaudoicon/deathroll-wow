@@ -1,106 +1,31 @@
 <template>
-  <div class="roll-history">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="wow-subheading">📜 Roll History</h3>
-      <div class="text-xs text-wow-text-muted">
-        {{ (gameStore.rolls || []).length }} rolls
-      </div>
-    </div>
+  <section class="wow-frame px-3 pt-7 pb-3 sm:px-4">
+    <div class="wow-frame-title">Combat Log</div>
 
-    <!-- Roll list -->
-    <div class="space-y-2 max-h-70 overflow-y-auto">
-      <div
+    <div class="log wow-scroll max-h-72 overflow-y-auto px-2 py-1.5 font-chat text-sm leading-snug space-y-0.5">
+      <p
         v-for="(roll, index) in reversedRolls"
         :key="roll.id"
-        class="roll-item"
-        :class="{
-          'eliminating': roll.isEliminating
-        }"
+        class="line break-words"
+        :class="roll.isEliminating ? 'text-chan-error' : 'text-chan-system'"
       >
-        <div class="flex items-center justify-between w-full">
-          <div class="flex items-center space-x-3">
-            <!-- Roll number -->
-            <div class="text-xs text-wow-text-muted font-mono w-6 text-right">
-              #{{ (gameStore.rolls || []).length - index }}
-            </div>
-            
-            <!-- Player name -->
-            <div class="flex items-center space-x-2">
-              <span 
-                class="font-semibold"
-                :class="{
-                  'text-wow-red': roll.isEliminating,
-                  'text-wow-gold': roll.playerId === gameStore.currentPlayer?.id,
-                  'text-wow-text-primary': !roll.isEliminating && roll.playerId !== gameStore.currentPlayer?.id
-                }"
-              >
-                {{ roll.playerName }}
-              </span>
-              
-              <!-- Your roll indicator -->
-              <span v-if="roll.playerId === gameStore.currentPlayer?.id" class="text-xs bg-wow-gold text-wow-bg-dark px-1 rounded">
-                YOU
-              </span>
-            </div>
-          </div>
+        <span class="text-white/40 text-xs mr-1">[{{ formatTime(roll.timestamp) }}] #{{ (gameStore.rolls || []).length - index }}</span>
+        <span :class="{ 'font-bold': roll.playerId === gameStore.currentPlayer?.id }">{{ roll.playerName }}</span>
+        rolls {{ roll.result }} ({{ roll.range.min }}-{{ roll.range.max }}).
+        <template v-if="roll.isEliminating">{{ roll.playerName }} has died.</template>
+      </p>
 
-          <div class="flex items-center space-x-3">
-            <!-- Roll result -->
-            <div class="text-right">
-              <div 
-                class="text-lg font-bold"
-                :class="{
-                  'text-wow-red': roll.isEliminating,
-                  'text-wow-gold': !roll.isEliminating
-                }"
-              >
-                {{ roll.result }}
-              </div>
-              <div class="text-xs text-wow-text-muted">
-                ({{ roll.range.min }}-{{ roll.range.max }})
-              </div>
-            </div>
-
-            <!-- Elimination indicator -->
-            <div class="w-6 text-center">
-              <span v-if="roll.isEliminating" class="text-lg" title="Eliminated">💀</span>
-              <span v-else class="text-lg opacity-50">🎲</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Roll timestamp -->
-        <div class="text-xs text-wow-text-muted mt-1 ml-9">
-          {{ formatTime(roll.timestamp) }}
-        </div>
-      </div>
-
-      <!-- Empty state -->
-      <div v-if="(gameStore.rolls || []).length === 0" class="text-center py-8 text-wow-text-muted">
-        <div class="text-4xl mb-2">🎲</div>
-        <p>No rolls yet</p>
-        <p class="text-sm">The dice await your command!</p>
-      </div>
+      <p v-if="(gameStore.rolls || []).length === 0" class="line text-white/60">
+        No rolls yet. The dice await your command.
+      </p>
     </div>
 
-    <!-- Statistics -->
-    <div v-if="(gameStore.rolls || []).length > 0" class="mt-4 pt-4 border-t border-wow-border">
-      <div class="grid grid-cols-3 gap-2 text-xs text-wow-text-secondary">
-        <div class="text-center">
-          <div class="font-semibold">Total Rolls</div>
-          <div class="text-wow-gold">{{ (gameStore.rolls || []).length }}</div>
-        </div>
-        <div class="text-center">
-          <div class="font-semibold">Eliminations</div>
-          <div class="text-wow-red">{{ eliminationCount }}</div>
-        </div>
-        <div class="text-center">
-          <div class="font-semibold">Average</div>
-          <div class="text-wow-text-primary">{{ averageRoll }}</div>
-        </div>
-      </div>
+    <div v-if="(gameStore.rolls || []).length > 0" class="mt-3 flex justify-between font-chat text-xs text-white/70">
+      <span>Rolls: <span class="text-gold">{{ (gameStore.rolls || []).length }}</span></span>
+      <span>Deaths: <span class="text-chan-error">{{ eliminationCount }}</span></span>
+      <span>Average: <span class="text-white">{{ averageRoll }}</span></span>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup>
@@ -109,9 +34,6 @@ import { useGameStore } from '@/stores/game'
 
 const gameStore = useGameStore()
 
-// Note: Using gameStore directly in template to maintain reactivity
-
-// Computed properties
 const reversedRolls = computed(() => {
   return [...(gameStore.rolls || [])].reverse()
 })
@@ -137,3 +59,12 @@ const formatTime = (timestamp) => {
   })
 }
 </script>
+
+<style scoped>
+.log {
+  background: rgb(0 0 0 / 0.55);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 3px;
+}
+.line { text-shadow: 1px 1px 0 #000; }
+</style>

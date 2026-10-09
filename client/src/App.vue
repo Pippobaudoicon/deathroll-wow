@@ -1,28 +1,25 @@
 <template>
-  <div id="app" class="min-h-screen">
-    <router-view />
-  </div>
+  <router-view />
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watchEffect } from 'vue'
 import { useGameStore } from './stores/game'
 
 const gameStore = useGameStore()
 
+// Faction drives the theme tokens in style.css
+watchEffect(() => {
+  document.documentElement.dataset.faction = gameStore.selectedFaction
+})
+
+const initAudio = () => gameStore.initializeSound().catch(() => {})
+const handleBeforeUnload = () => gameStore.disconnect()
+
 onMounted(() => {
-  // Initialize audio context on first user interaction
-  const initAudioOnClick = () => {
-    gameStore.initializeSound().catch(() => {})
-  }
-  document.addEventListener('click', initAudioOnClick, { once: true })
-  document.addEventListener('touchstart', initAudioOnClick, { once: true })
-  
-  // Handle page refresh/close
-  const handleBeforeUnload = () => {
-    gameStore.disconnect()
-  }
-  
+  // Audio context needs a user gesture
+  document.addEventListener('click', initAudio, { once: true })
+  document.addEventListener('touchstart', initAudio, { once: true })
   window.addEventListener('beforeunload', handleBeforeUnload)
 })
 
@@ -31,7 +28,3 @@ onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
-
-<style>
-/* Global app styles are in assets/style.css */
-</style>

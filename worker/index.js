@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 
 const DISCONNECT_TIMEOUT = 5 * 60 * 1000 // 5 minutes
+const ROLL_SUSPENSE_MS = 1000 // dice tumble shown to everyone before the result
 const now = () => new Date().toISOString()
 
 const generateRoomId = () => {
@@ -142,7 +143,7 @@ export class Room extends DurableObject {
 
     player.isConnected = false
     player.disconnectedAt = Date.now()
-    this.addMessage('system', `${player.name} disconnected`)
+    this.addMessage('system', `${player.name} has gone offline.`)
     await this.save()
 
     this.broadcast('player-disconnected', { player, room: this.roomJSON() }, ws)
@@ -189,7 +190,7 @@ export class Room extends DurableObject {
         if (player) {
           player.isConnected = true
           if (faction) player.faction = faction
-          this.addMessage('system', `${name} reconnected`)
+          this.addMessage('system', `${name} has come online.`)
           // Unbind any older socket still attached to this player
           for (const other of this.ctx.getWebSockets()) {
             if (other !== ws && other.deserializeAttachment()?.playerId === player.id) {
@@ -210,7 +211,7 @@ export class Room extends DurableObject {
             joinedAt: now(),
           }
           room.players.push(player)
-          this.addMessage('system', `${name} joined the room`)
+          this.addMessage('system', `${name} joins the party.`)
         }
         ws.serializeAttachment({ playerId: player.id })
       }
@@ -256,21 +257,33 @@ export class Room extends DurableObject {
         finishedAt: null,
       }
       room.status = 'playing'
-      this.addMessage('game', '🎲 The Deathroll begins! May fortune favor the bold!')
-      this.addMessage('game', `🎮 Game started! ${this.currentPlayer().name} goes first!`)
-      this.addMessage('game', `🎲 Roll between 1 and ${startingRoll}!`)
+      this.addMessage('game', 'The Deathroll begins. May fortune favor the bold.')
+      this.addMessage('game', `${this.currentPlayer().name} rolls first.`)
+      this.addMessage('game', `Roll between 1 and ${startingRoll}.`)
 
       this.broadcast('game-started', { game: this.gameJSON(), room: this.roomJSON() })
     },
 
-    'roll-dice'(ws) {
+    async 'roll-dice'(ws) {
       const player = this.requirePlayer(ws)
       const game = this.room.game
       if (!game) throw new Error('No active game found')
       if (game.status !== 'active') throw new Error('Game is not active')
+      if (this.rolling) throw new Error('Dice are already rolling')
       const current = this.currentPlayer()
       if (!current || current.id !== player.id) throw new Error('Not your turn')
       if (current.isEliminated) throw new Error('Player is eliminated')
+
+      // Everyone tumbles together, then gets the result in the same broadcast
+      this.rolling = true
+      this.broadcast('roll-started', { playerId: current.id, playerName: current.name, range: { ...game.currentRange } })
+      await new Promise(resolve => setTimeout(resolve, ROLL_SUSPENSE_MS))
+      this.rolling = false
+      // The game may have been reset or the roller may have left while the dice were in the air
+      if (this.room?.game !== game || game.status !== 'active' || this.currentPlayer()?.id !== current.id) {
+        this.broadcast('roll-cancelled')
+        return
+      }
 
       const result = Math.floor(Math.random() * game.currentRange.max) + game.currentRange.min
       const roll = {
@@ -294,15 +307,15 @@ export class Room extends DurableObject {
       this.nextTurn()
 
       this.addMessage('game', roll.isEliminating
-        ? `💀 ${roll.playerName} rolls ${result} (1-${roll.range.max}) and is eliminated!`
-        : `🎲 ${roll.playerName} rolls ${result} (1-${roll.range.max})`)
+        ? `${roll.playerName} rolls ${result} (1-${roll.range.max}). ${roll.playerName} has died.`
+        : `${roll.playerName} rolls ${result} (1-${roll.range.max})`)
 
       if (game.status === 'finished') {
         this.room.status = 'finished'
         const winner = this.findPlayer(game.winnerId)
         this.addMessage('game', winner
-          ? `🏆 ${winner.name} wins the Deathroll! Victory is theirs!`
-          : '🤷 Game ended with no winner!')
+          ? `${winner.name} has won the Deathroll!`
+          : 'The Deathroll ends with no victor.')
       }
 
       const gameState = this.gameJSON()
@@ -325,7 +338,7 @@ export class Room extends DurableObject {
       this.room.status = 'lobby'
       this.room.game = null
       this.room.players.forEach(p => { p.isEliminated = false })
-      this.addMessage('game', '🔄 Game has been reset. Ready for another round!')
+      this.addMessage('game', 'A new Deathroll is ready.')
       this.broadcast('game-reset', { room: this.roomJSON() })
     },
 
@@ -386,12 +399,12 @@ export class Room extends DurableObject {
   removePlayer(player) {
     const room = this.room
     room.players = room.players.filter(p => p.id !== player.id)
-    this.addMessage('system', `${player.name} left the room`)
+    this.addMessage('system', `${player.name} leaves the party.`)
     // If host leaves, transfer host to another player
     if (player.isHost && room.players.length > 0) {
       room.players[0].isHost = true
       room.hostName = room.players[0].name
-      this.addMessage('system', `${room.players[0].name} is now the host`)
+      this.addMessage('system', `${room.players[0].name} is now the group leader.`)
     }
   }
 

@@ -3,119 +3,175 @@ import { ref, computed, markRaw } from 'vue'
 import * as Tone from 'tone'
 import { createSocket } from '@/utils/socket'
 
+const ROOM_STATE_KEY = 'deathroll-room-state'
+const FACTION_KEY = 'deathroll-faction'
+
+// Synthesized WoW-style UI cues. Each cue owns its synth so volumes never need resetting.
+// Only call after Tone.start() has succeeded (needs a user gesture).
+const createSounds = () => {
+  const out = (node, db) => {
+    node.volume.value = db
+    return markRaw(node)
+  }
+
+  // Checkbox tick: a tiny woody knock with a filtered metallic edge
+  const tickBody = out(new Tone.MembraneSynth({
+    pitchDecay: 0.008, octaves: 3,
+    envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.02 }
+  }).toDestination(), -26)
+  const tickEdge = out(new Tone.NoiseSynth({
+    noise: { type: 'white' },
+    envelope: { attack: 0.001, decay: 0.015, sustain: 0 }
+  }).connect(markRaw(new Tone.Filter(4500, 'bandpass').toDestination())), -32)
+
+  // Dice: bone/wood knocks plus noise clicks
+  const diceKnock = out(new Tone.MembraneSynth({
+    pitchDecay: 0.01, octaves: 2,
+    envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.02 }
+  }).toDestination(), -16)
+  const diceClack = out(new Tone.NoiseSynth({
+    noise: { type: 'pink' },
+    envelope: { attack: 0.001, decay: 0.025, sustain: 0 }
+  }).connect(markRaw(new Tone.Filter(2600, 'bandpass').toDestination())), -18)
+
+  // Whisper: soft two-note sine ping
+  const whisper = out(new Tone.Synth({
+    oscillator: { type: 'sine' },
+    envelope: { attack: 0.005, decay: 0.3, sustain: 0, release: 0.15 }
+  }).toDestination(), -26)
+
+  // Ready check: warm, filtered brass-ish chord swell
+  const horn = out(new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'fatsawtooth', count: 3, spread: 18 },
+    envelope: { attack: 0.18, decay: 0.2, sustain: 0.5, release: 0.35 }
+  }).connect(markRaw(new Tone.Filter(1100, 'lowpass').toDestination())), -22)
+
+  // Death toll: low inharmonic FM gong
+  const gong = out(new Tone.FMSynth({
+    harmonicity: 1.41, modulationIndex: 8,
+    envelope: { attack: 0.005, decay: 1.1, sustain: 0, release: 0.6 },
+    modulationEnvelope: { attack: 0.005, decay: 0.5, sustain: 0, release: 0.3 }
+  }).connect(markRaw(new Tone.Filter(900, 'lowpass').toDestination())), -14)
+
+  const mp3 = (file) => () => new Audio(`/sounds/${file}.mp3`).play().catch(() => {})
+  const pick = (list) => list[Math.floor(Math.random() * list.length)]
+
+  return {
+    clickSound: () => {
+      const now = Tone.now()
+      tickBody.triggerAttackRelease('A4', 0.04, now)
+      tickEdge.triggerAttackRelease(0.015, now)
+    },
+
+    // Dice tumble: hits bunch up then spread out and soften as they settle (~0.7s)
+    rollSound: () => {
+      const now = Tone.now()
+      ;[0, 0.05, 0.11, 0.16, 0.24, 0.33, 0.45, 0.6].forEach((t, i) => {
+        const v = 1 - i * 0.1
+        const jitter = Math.random() * 0.015
+        diceKnock.triggerAttackRelease(pick(['D4', 'F4', 'G4', 'A4', 'C5']), 0.05, now + t + jitter, v)
+        diceClack.triggerAttackRelease(0.02, now + t + jitter + 0.003, v * 0.8)
+      })
+    },
+
+    chatSound: () => {
+      const now = Tone.now()
+      whisper.triggerAttackRelease('E6', 0.12, now)
+      whisper.triggerAttackRelease('B6', 0.2, now + 0.09, 0.7)
+    },
+
+    turnSound: () => {
+      const now = Tone.now()
+      horn.triggerAttackRelease(['A3', 'D4'], 0.18, now, 0.6)
+      horn.triggerAttackRelease(['D4', 'F#4', 'A4', 'D5'], 0.45, now + 0.2)
+    },
+
+    deathSound: () => gong.triggerAttackRelease('D2', 1.2),
+
+    alliance: mp3('alliance'),
+    horde: mp3('horde'),
+    allianceDead: mp3('alliance_defeat'),
+    hordeDead: mp3('horde_defeat'),
+    allianceWin: mp3('alliance_victory'),
+    hordeWin: mp3('horde_victory'),
+  }
+}
+
 export const useGameStore = defineStore('game', () => {
   // State
   const socket = ref(null)
   const connected = ref(false)
   const loading = ref(false)
   const error = ref(null)
-  
+
   // Player & Room
   const currentPlayer = ref(null)
   const room = ref(null)
   const players = ref([])
   const messages = ref([])
-  
+
   // Game State
   const game = ref(null)
   const currentTurn = ref(null)
   const gameStatus = ref('lobby') // 'lobby', 'playing', 'finished'
   const winner = ref(null)
   const rolls = ref([])
-  
-    // Faction State
-  const selectedFaction = ref('horde') // 'alliance' or 'horde'
+  const rollingPlayer = ref(null) // { playerId, playerName, range } while the server tumbles the dice
 
-  // Sound
-  const sounds = ref({
-    synth: null,
-    clickSound: null,
-    rollSound: null,
-    winSound: null,
-    loseSound: null,
-    chatSound: null,
-    initialized: false,
-    alliance: null,
-    horde: null,
-    allianceWin: null,
-    hordeWin: null,
-    allianceDead: null,
-    hordeDead: null,
-  })
-  
+  // Faction State ('alliance' or 'horde'), persisted across reloads
+  const selectedFaction = ref('horde')
+  try {
+    selectedFaction.value = localStorage.getItem(FACTION_KEY) || 'horde'
+  } catch {
+    // storage unavailable, keep default
+  }
+
+  // Sound cues, built once by initializeSound() after a user gesture
+  let sounds = null
+
   // Persistence functions
   const saveRoomState = (roomData, playerData) => {
     try {
-      const persistedState = {
+      localStorage.setItem(ROOM_STATE_KEY, JSON.stringify({
         roomId: roomData.id,
         playerName: playerData.name,
         playerId: playerData.id,
         isGuest: playerData.isGuest,
         timestamp: Date.now()
-      }
-      localStorage.setItem('deathroll-room-state', JSON.stringify(persistedState))
-      console.log('💾 Room state saved to localStorage:', persistedState)
+      }))
     } catch (err) {
       console.warn('Failed to save room state:', err)
     }
   }
-  
+
   const getSavedRoomState = () => {
     try {
-      const saved = localStorage.getItem('deathroll-room-state')
+      const saved = localStorage.getItem(ROOM_STATE_KEY)
       if (!saved) return null
-      
+
       const state = JSON.parse(saved)
-      
-      // Check if state is too old (expire after 24 hours)
-      const maxAge = 24 * 60 * 60 * 1000 // 24 hours
-      if (Date.now() - state.timestamp > maxAge) {
-        localStorage.removeItem('deathroll-room-state')
-        console.log('🗑️ Expired room state removed')
+
+      // Expire after 24 hours
+      if (Date.now() - state.timestamp > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(ROOM_STATE_KEY)
         return null
       }
-      
-      console.log('📁 Retrieved saved room state:', state)
       return state
     } catch (err) {
       console.warn('Failed to retrieve saved room state:', err)
-      localStorage.removeItem('deathroll-room-state')
+      localStorage.removeItem(ROOM_STATE_KEY)
       return null
     }
   }
-  
+
   const clearSavedRoomState = () => {
-    localStorage.removeItem('deathroll-room-state')
-    console.log('🗑️ Room state cleared from localStorage')
+    localStorage.removeItem(ROOM_STATE_KEY)
   }
-  
-  // Auto-reconnect function
-  const attemptAutoReconnect = () => {
-    const savedState = getSavedRoomState()
-    if (!savedState) {
-      console.log('📋 No saved room state found')
-      return false
-    }
-    
-    console.log('🔄 Attempting auto-reconnect with saved state:', savedState)
-    
-    // Try to rejoin the saved room
-    joinRoom(savedState.roomId, savedState.playerName, savedState.isGuest)
-      .then(() => {
-        console.log('✅ Auto-reconnect successful')
-      })
-      .catch((err) => {
-        console.warn('❌ Auto-reconnect failed:', err)
-        clearSavedRoomState()
-      })
-    
-    return true
-  }
-  
+
   // Computed
   const isHost = computed(() => currentPlayer.value?.isHost || false)
   const canStartGame = computed(() => {
-    return gameStatus.value === 'lobby' && 
+    return gameStatus.value === 'lobby' &&
            (players.value || []).filter(p => !p.isEliminated).length >= 2
   })
   const isMyTurn = computed(() => {
@@ -124,176 +180,53 @@ export const useGameStore = defineStore('game', () => {
   const activePlayers = computed(() => {
     return (players.value || []).filter(p => !p.isEliminated && p.isConnected)
   })
-  
+
   // Actions
   const initializeSound = async () => {
     try {
-      // Skip if already initialized
-      if (sounds.value.synth && sounds.value.initialized) {
-        return true
-      }
-      
-      // Initialize Tone.js - this requires user interaction
+      if (sounds) return true
+
+      // Requires a user gesture
       if (Tone.context.state === 'suspended') {
         await Tone.start()
       }
-      
-      // Double check that context is running
       if (Tone.context.state !== 'running') {
         console.warn('Audio context is not running, sounds may not play')
         return false
       }
-      
-      // Create synth for various sounds - use markRaw to prevent Vue reactivity
-      sounds.value.synth = markRaw(new Tone.Synth().toDestination())
-      
-      // Create specific sounds using Tone.js
-      sounds.value.clickSound = markRaw(() => {
-        // Pleasant UI click - soft bell-like sound
-        sounds.value.synth.volume.value = -15 // Softer volume
-        sounds.value.synth.triggerAttackRelease('G5', '32n')
-        setTimeout(() => {
-          sounds.value.synth.volume.value = -10 // Reset volume
-        }, 100)
-      })
-      
-      sounds.value.rollSound = markRaw(() => {
-        // Suspenseful dice roll - building tension with accelerating rhythm
-        sounds.value.synth.volume.value = -12
-        const notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4']
-        const now = Tone.now()
-        
-        // Start slow and accelerate, then dramatic pause before final note
-        notes.forEach((note, index) => {
-          const delay = index < 4 
-            ? index * 0.15      // Slow start
-            : 0.6 + (index - 4) * 0.08  // Faster acceleration
-          
-          sounds.value.synth.triggerAttackRelease(note, '32n', now + delay)
-        })
-        
-        // Dramatic final high note after pause
-        setTimeout(() => {
-          sounds.value.synth.triggerAttackRelease('C5', '8n', Tone.now())
-        }, 1200)
-        
-        // Reset volume
-        setTimeout(() => {
-          sounds.value.synth.volume.value = -10
-        }, 1500)
-      })
-      
-      sounds.value.winSound = markRaw(() => {
-        // Epic victory fanfare with triumph feeling
-        sounds.value.synth.volume.value = -8 // Slightly louder for celebration
-        const fanfare = [
-          { note: 'C5', time: 0 },
-          { note: 'E5', time: 0.15 },
-          { note: 'G5', time: 0.3 },
-          { note: 'C6', time: 0.5 },
-          { note: 'E6', time: 0.7 },
-          { note: 'G6', time: 0.9 }
-        ]
-        const now = Tone.now()
-        
-        fanfare.forEach((item) => {
-          sounds.value.synth.triggerAttackRelease(item.note, '4n', now + item.time)
-        })
-        
-        // Reset volume
-        setTimeout(() => {
-          sounds.value.synth.volume.value = -10
-        }, 1200)
-      })
-      
-      sounds.value.loseSound = markRaw(() => {
-        // Dramatic defeat sound - slow descending tragedy
-        sounds.value.synth.volume.value = -12
-        const loss = [
-          { note: 'G4', time: 0 },
-          { note: 'F4', time: 0.2 },
-          { note: 'E4', time: 0.45 },
-          { note: 'D4', time: 0.75 },
-          { note: 'C4', time: 1.1 },
-          { note: 'B3', time: 1.5 }, // Extra low note for finality
-        ]
-        const now = Tone.now()
-        
-        loss.forEach((item) => {
-          sounds.value.synth.triggerAttackRelease(item.note, '4n', now + item.time)
-        })
-        
-        // Reset volume
-        setTimeout(() => {
-          sounds.value.synth.volume.value = -10
-        }, 2000)
-      })
-      
-      sounds.value.chatSound = markRaw(() => {
-        // Subtle chat notification - very quiet and brief
-        sounds.value.synth.volume.value = -25 // Much quieter
-        sounds.value.synth.triggerAttackRelease('E5', '64n') // Very short note
-        setTimeout(() => {
-          sounds.value.synth.volume.value = -10 // Reset volume
-        }, 50)
-      })
 
-      sounds.value.alliance = markRaw(() => {
-        const audio = new Audio('/sounds/alliance.mp3')
-        audio.play()
-      })
-
-      sounds.value.horde = markRaw(() => {
-        const audio = new Audio('/sounds/horde.mp3')
-        audio.play()
-      })
-
-      sounds.value.allianceDead = markRaw(() => {
-        const audio = new Audio('/sounds/alliance_defeat.mp3')
-        audio.play()
-      })
-
-      sounds.value.hordeDead = markRaw(() => {
-        const audio = new Audio('/sounds/horde_defeat.mp3')
-        audio.play()
-      })
-
-      sounds.value.allianceWin = markRaw(() => {
-        const audio = new Audio('/sounds/alliance_victory.mp3')
-        audio.play()
-      })
-
-      sounds.value.hordeWin = markRaw(() => {
-        const audio = new Audio('/sounds/horde_victory.mp3')
-        audio.play()
-      })
-
-      console.log('🔊 Sound system initialized')
-      sounds.value.initialized = true
+      sounds = createSounds()
       return true
     } catch (err) {
       console.warn('Failed to initialize sound:', err)
       return false
     }
   }
-  
+
+  // Ready-check cue when the turn passes to me; slight delay so it doesn't stack on the result sounds
+  const announceTurn = (previousTurn, status) => {
+    const me = currentPlayer.value?.id
+    if (status === 'active' && currentTurn.value?.id === me && previousTurn?.id !== me) {
+      setTimeout(() => {
+        if (isMyTurn.value) playSound('turnSound')
+      }, 400)
+    }
+  }
+
   // Each room is its own WebSocket endpoint, so the socket is tied to a roomId
   const connect = (roomId) => {
     if (socket.value?.roomId === roomId) {
       if (!socket.value.connected) socket.value.connect()
       return
     }
-    
+
     if (socket.value) socket.value.disconnect()
-    
-    console.log('🔌 Creating new socket connection...')
+
     socket.value = markRaw(createSocket(roomId))
-    
-    // Socket event listeners
+
     socket.value.on('connect', () => {
       connected.value = true
       error.value = null
-      console.log('✅ Connected to server')
       // After an automatic reconnect, re-join so the server binds this socket to our player
       if (currentPlayer.value && room.value?.id === roomId) {
         socket.value.emit('join-room', {
@@ -304,24 +237,22 @@ export const useGameStore = defineStore('game', () => {
         })
       }
     })
-    
+
     socket.value.on('disconnect', () => {
       connected.value = false
-      console.log('❌ Disconnected from server')
     })
-    
+
     socket.value.on('error', (err) => {
       error.value = err.message
       loading.value = false
-      console.error('💥 Socket error:', err)
+      console.error('Socket error:', err)
     })
-    
-    // Game event listeners
+
     setupGameEventListeners()
-    
+
     socket.value.connect()
   }
-  
+
   const disconnect = () => {
     if (socket.value) {
       socket.value.disconnect()
@@ -330,84 +261,62 @@ export const useGameStore = defineStore('game', () => {
     connected.value = false
     resetState()
   }
-  
+
   const setupGameEventListeners = () => {
     if (!socket.value) return
-    
-    // Player joined
+
     socket.value.on('player-joined', (data) => {
-      console.log('🎉 Player joined event handler triggered:', data)
-      console.log('📊 Game data received:', data.game)
-      
       currentPlayer.value = data.player
       room.value = data.room
       players.value = data.room.players
       messages.value = data.room.messages
-      
+
       if (data.game) {
-        console.log('🎮 Setting up game state from server data')
         game.value = data.game
         gameStatus.value = data.game.status === 'active' ? 'playing' : data.game.status
         currentTurn.value = data.game.currentPlayer
         rolls.value = data.game.rolls || []
         winner.value = data.game.winner || null
-        
-        console.log('🎯 Game state set:', {
-          status: gameStatus.value,
-          currentTurn: currentTurn.value?.name,
-          rollsCount: rolls.value.length,
-          winner: winner.value?.name
-        })
       } else {
-        // No active game, set lobby state
-        console.log('🏠 No active game, setting lobby state')
         gameStatus.value = 'lobby'
         game.value = null
         currentTurn.value = null
         rolls.value = []
+        rollingPlayer.value = null
         winner.value = null
       }
-      
-      // Save room state to localStorage for persistence
+
       saveRoomState(data.room, data.player)
-      
       loading.value = false
-      console.log('✅ Player joined handler completed, loading set to false')
     })
-    
-    // Room updated
+
     socket.value.on('room-updated', (roomData) => {
-      console.log('🏠 Room updated event:', roomData)
       room.value = roomData
       players.value = roomData.players
       messages.value = roomData.messages
       gameStatus.value = roomData.status
-      
-      // Update game state if included in room data
+
       if (roomData.game) {
-        console.log('🎮 Updating game state from room update')
         game.value = roomData.game
         gameStatus.value = roomData.game.status === 'active' ? 'playing' : roomData.game.status
         currentTurn.value = roomData.game.currentPlayer
         rolls.value = roomData.game.rolls || []
         winner.value = roomData.game.winner || null
       } else if (roomData.status === 'lobby') {
-        // Room is in lobby, clear game state
-        console.log('🏠 Room in lobby, clearing game state')
         game.value = null
         currentTurn.value = null
         rolls.value = []
+        rollingPlayer.value = null
         winner.value = null
       }
     })
-    
-    // Player list updated
+
     socket.value.on('player-list-updated', (playerList) => {
       players.value = playerList
     })
-    
-    // Game started
+
     socket.value.on('game-started', (data) => {
+      const previousTurn = currentTurn.value
       game.value = data.game
       room.value = data.room
       gameStatus.value = 'playing'
@@ -415,51 +324,54 @@ export const useGameStore = defineStore('game', () => {
       rolls.value = data.game.rolls || []
       messages.value = data.room.messages
       playSound('rollSound')
+      announceTurn(previousTurn, data.game.status)
     })
-    
-    // Dice rolled
+
+    // Server announces the roll to everyone, then sends the result ~1s later in one broadcast
+    socket.value.on('roll-started', (data) => {
+      rollingPlayer.value = data
+      playSound('rollSound')
+    })
+
+    socket.value.on('roll-cancelled', () => {
+      rollingPlayer.value = null
+    })
+
     socket.value.on('dice-rolled', (data) => {
       const { roll, gameState, room: roomData } = data
-      
+      const previousTurn = currentTurn.value
+      rollingPlayer.value = null
+
       game.value = gameState
       room.value = roomData
-      players.value = roomData.players // Update players array with latest states
+      players.value = roomData.players
       currentTurn.value = gameState.currentPlayer
       rolls.value = gameState.rolls || []
       messages.value = roomData.messages
-      
-      // Play appropriate sound
+
       if (roll.isEliminating) {
-        if (roll.playerId === currentPlayer.value?.id) {
-          playSound(selectedFaction.value +'Dead')
-        } else {
-          playSound('rollSound')
-        }
-      } else {
-        playSound('rollSound')
+        playSound(roll.playerId === currentPlayer.value?.id ? selectedFaction.value + 'Dead' : 'deathSound')
       }
+      announceTurn(previousTurn, gameState.status)
     })
-    
-    // Game finished
+
     socket.value.on('game-finished', (data) => {
       gameStatus.value = 'finished'
       winner.value = data.winner
       game.value = data.gameState
-      
-      // Update players if room data is included
+
       if (data.room && data.room.players) {
         players.value = data.room.players
       }
 
-      // Play winner's faction victory sound for everyone
+      // Winner's faction victory sound for everyone
       if (data.winner?.faction === 'horde') {
         playSound('hordeWin')
       } else if (data.winner?.faction === 'alliance') {
         playSound('allianceWin')
       }
     })
-    
-    // Game reset
+
     socket.value.on('game-reset', (data) => {
       room.value = data.room
       messages.value = data.room.messages
@@ -468,31 +380,26 @@ export const useGameStore = defineStore('game', () => {
       currentTurn.value = null
       winner.value = null
       rolls.value = []
-      
-      // Reset players
+      rollingPlayer.value = null
       players.value = players.value.map(p => ({ ...p, isEliminated: false }))
     })
-    
-    // Chat message
+
     socket.value.on('new-message', (message) => {
       messages.value.push(message)
       if (message.playerId !== currentPlayer.value?.id) {
         playSound('chatSound')
       }
     })
-    
-    // Left room
+
     socket.value.on('left-room', () => {
       resetState()
     })
-    
-    // Player disconnected
+
     socket.value.on('player-disconnected', (data) => {
       players.value = data.room.players
       messages.value = data.room.messages
-    })  
-    
-    // Player reconnect
+    })
+
     socket.value.on('player-reconnected', (data) => {
       players.value = data.room.players
       messages.value = data.room.messages
@@ -502,16 +409,11 @@ export const useGameStore = defineStore('game', () => {
   const joinRoom = async (roomId, playerName, isGuest = true) => {
     loading.value = true
     error.value = null
-    
-    console.log('🔄 Starting room join...', { roomId, playerName, isGuest })
-    
+
     try {
-      // Ensure we're connected
       connect(roomId)
-      
-      // Wait for connection if needed
+
       if (!connected.value) {
-        console.log('⏳ Waiting for socket connection...')
         await new Promise((resolve) => {
           const checkConnection = () => {
             if (connected.value) {
@@ -523,27 +425,21 @@ export const useGameStore = defineStore('game', () => {
           checkConnection()
         })
       }
-      
-      console.log('📡 Emitting join-room event:', { roomId, playerName, isGuest, faction: selectedFaction.value })
-      
-      // Emit join room event
+
+      // The 'player-joined' handler completes the join
       socket.value.emit('join-room', {
         roomId,
         playerName,
         isGuest,
         faction: selectedFaction.value
       })
-      
-      // The 'player-joined' event handler in setupGameEventListeners will handle the response
-      console.log('✅ Join room event emitted, waiting for server response...')
-      
     } catch (err) {
       error.value = err.message
       loading.value = false
       throw err
     }
   }
-  
+
   const leaveRoom = () => {
     if (socket.value) {
       socket.value.emit('leave-room')
@@ -551,37 +447,33 @@ export const useGameStore = defineStore('game', () => {
     clearSavedRoomState()
     resetState()
   }
-  
+
   const startGame = (startingRoll = 1000) => {
     if (socket.value && canStartGame.value) {
       socket.value.emit('start-game', { startingRoll })
       playSound('clickSound')
     }
   }
-  
+
   const rollDice = () => {
     if (socket.value && isMyTurn.value) {
       socket.value.emit('roll-dice')
     }
   }
-  
+
   const sendMessage = (message) => {
-    console.log('💬 Sending message:', message, 'Socket connected:', !!socket.value)
     if (socket.value && message.trim()) {
       socket.value.emit('send-message', { message: message.trim() })
-      console.log('📤 Message emitted to server')
-    } else {
-      console.warn('❌ Cannot send message - no socket or empty message')
     }
   }
-  
+
   const resetGame = () => {
     if (socket.value && isHost.value) {
       socket.value.emit('reset-game')
       playSound('clickSound')
     }
   }
-  
+
   const checkRoomExists = async (roomId) => {
     try {
       const response = await fetch(`/api/rooms/${roomId}`)
@@ -590,10 +482,8 @@ export const useGameStore = defineStore('game', () => {
       return false
     }
   }
-  
+
   const resetState = () => {
-    console.log('🔄 resetState called - clearing all game data')
-    console.trace('resetState call stack')
     currentPlayer.value = null
     room.value = null
     players.value = []
@@ -603,66 +493,40 @@ export const useGameStore = defineStore('game', () => {
     gameStatus.value = 'lobby'
     winner.value = null
     rolls.value = []
+    rollingPlayer.value = null
     loading.value = false
     error.value = null
   }
-  
+
   const clearError = () => {
     error.value = null
   }
-  
+
   const playSound = async (soundName) => {
     try {
-      // Try to initialize sound if not already done
-      if (!sounds.value.synth) {
-        const initialized = await initializeSound()
-        if (!initialized) return // Skip if initialization failed
-      }
-      
-      // Check if Tone context is running, if not try to start it
+      if (!sounds && !(await initializeSound())) return
+
       if (Tone.context.state !== 'running') {
         await Tone.start()
       }
-      
-      // Play the requested sound
-      if (sounds.value[soundName] && Tone.context.state === 'running') {
-        sounds.value[soundName]()
-      } else {
-        console.warn(`Audio context not ready to play ${soundName}, state: ${Tone.context.state}`)
+
+      if (sounds[soundName] && Tone.context.state === 'running') {
+        sounds[soundName]()
       }
     } catch (err) {
       console.warn(`Failed to play sound ${soundName}:`, err)
     }
   }
 
-  // Faction functions
-  const saveFaction = (faction) => {
+  const setFaction = (faction) => {
+    selectedFaction.value = faction
     try {
-      localStorage.setItem('deathroll-faction', faction)
-      console.log('💾 Faction saved to localStorage:', faction)
+      localStorage.setItem(FACTION_KEY, faction)
     } catch (err) {
       console.warn('Failed to save faction:', err)
     }
   }
 
-  const getSavedFaction = () => {
-    try {
-      const saved = localStorage.getItem('deathroll-faction')
-      return saved || 'horde'
-    } catch (err) {
-      console.warn('Failed to retrieve saved faction:', err)
-      return 'horde'
-    }
-  }
-
-  const setFaction = (faction) => {
-    selectedFaction.value = faction
-    saveFaction(faction)
-  }
-
-  // Initialize faction from localStorage
-  selectedFaction.value = getSavedFaction()
-  
   return {
     // State
     socket,
@@ -678,14 +542,15 @@ export const useGameStore = defineStore('game', () => {
     gameStatus,
     winner,
     rolls,
+    rollingPlayer,
     selectedFaction,
-    
+
     // Computed
     isHost,
     canStartGame,
     isMyTurn,
     activePlayers,
-    
+
     // Actions
     initializeSound,
     connect,
@@ -701,10 +566,9 @@ export const useGameStore = defineStore('game', () => {
     clearError,
     playSound,
     setFaction,
-    
+
     // Persistence
     getSavedRoomState,
-    clearSavedRoomState,
-    attemptAutoReconnect
+    clearSavedRoomState
   }
 })
